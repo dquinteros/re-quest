@@ -94,6 +94,7 @@ export function PrAttentionManager({
   }, [selectedId, setLastSelectedPrId]);
 
   const [syncing, setSyncing] = useState(false);
+  const [refreshingPr, setRefreshingPr] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
   const [aiReviewRunning, setAiReviewRunning] = useState(false);
@@ -189,6 +190,22 @@ export function PrAttentionManager({
       addToast(error instanceof Error ? error.message : "Unable to start sync", "error");
     } finally {
       setSyncing(false);
+    }
+  }
+
+  async function handleRefreshPr() {
+    if (!selectedId) return;
+    setRefreshingPr(true);
+    try {
+      await requestJson(`/api/prs/${encodeURIComponent(selectedId)}/refresh`, {
+        method: "POST",
+      });
+      addToast("PR refreshed.", "info");
+      triggerRefresh();
+    } catch (error) {
+      addToast(error instanceof Error ? error.message : "Unable to refresh PR", "error");
+    } finally {
+      setRefreshingPr(false);
     }
   }
 
@@ -326,6 +343,8 @@ export function PrAttentionManager({
             onMutateStringItem={mutations.mutateStringItem}
             aiReviewRunning={aiReviewRunning}
             onRunAiReview={() => void handleRunAiReview()}
+            refreshing={refreshingPr}
+            onRefreshPr={() => void handleRefreshPr()}
           />
         </div>
 

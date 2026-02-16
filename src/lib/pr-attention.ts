@@ -10,10 +10,18 @@ export interface UpsertAttentionStateInput {
   ciState: CiState;
   isDraft: boolean;
   updatedAt: Date;
+  createdAt: Date;
+  isMergeable: boolean | null;
+  additions: number | null;
+  deletions: number | null;
+  commentCount: number | null;
+  commitCount: number | null;
+  labels: string[];
   assignees: string[];
   requestedReviewers: string[];
   body: string | null;
   viewerLogin: string | null;
+  lastActivityByViewer?: boolean;
 }
 
 function mentionCount(text: string, login: string | null): number {
@@ -53,7 +61,15 @@ export function buildAttentionState(input: Omit<UpsertAttentionStateInput, "pull
     ciState: input.ciState,
     isDraft: input.isDraft,
     updatedAt: input.updatedAt,
+    createdAt: input.createdAt,
+    isMergeable: input.isMergeable,
+    reviewState: input.reviewState,
+    additions: input.additions,
+    deletions: input.deletions,
+    commentCount: input.commentCount,
+    commitCount: input.commitCount,
     mentionCount: mentionCount(input.body ?? "", viewerLogin),
+    lastActivityByViewer: input.lastActivityByViewer ?? false,
   };
 
   const score = calculateUrgencyScore(scoringInput);
@@ -64,6 +80,8 @@ export function buildAttentionState(input: Omit<UpsertAttentionStateInput, "pull
     reviewRequested ||
     assignedToMe ||
     input.ciState === "FAILURE" ||
+    input.isMergeable === false ||
+    input.reviewState === "CHANGES_REQUESTED" ||
     score.finalScore >= STALE_ATTENTION_THRESHOLD;
 
   return {
@@ -80,10 +98,18 @@ export async function upsertAttentionState(input: UpsertAttentionStateInput): Pr
     ciState: input.ciState,
     isDraft: input.isDraft,
     updatedAt: input.updatedAt,
+    createdAt: input.createdAt,
+    isMergeable: input.isMergeable,
+    additions: input.additions,
+    deletions: input.deletions,
+    commentCount: input.commentCount,
+    commitCount: input.commitCount,
+    labels: input.labels,
     assignees: input.assignees,
     requestedReviewers: input.requestedReviewers,
     body: input.body,
     viewerLogin: input.viewerLogin,
+    lastActivityByViewer: input.lastActivityByViewer,
   });
 
   const now = new Date();

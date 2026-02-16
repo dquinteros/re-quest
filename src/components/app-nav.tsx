@@ -70,6 +70,17 @@ export function AppNav({
           >
             Flow Rules
           </Link>
+          <Link
+            href="/insights"
+            className={cn(
+              "px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
+              pathname === "/insights"
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+            )}
+          >
+            Insights
+          </Link>
         </div>
       )}
 

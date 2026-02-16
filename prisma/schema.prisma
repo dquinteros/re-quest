@@ -60,6 +60,13 @@ enum ActionType {
   SYNC_MANUAL
   SYNC_POLL
   AI_REVIEW
+  REFRESH_PR
+  AI_SUMMARY
+  AI_RISK_ASSESSMENT
+  AI_LABEL_SUGGEST
+  AI_REVIEWER_SUGGEST
+  AI_DIGEST
+  AI_DEPENDENCY_DETECTION
 }
 
 enum SyncTrigger {
@@ -149,6 +156,11 @@ model PullRequest {
   projects            Json?
   raw                 Json?
   mergeable           Boolean?
+  additions           Int?
+  deletions           Int?
+  changedFiles        Int?
+  commentCount        Int?
+  commitCount         Int?
   headRef             String?
   baseRef             String?
   createdAt           DateTime              @default(now())
@@ -170,6 +182,8 @@ model PullRequestAttention {
   attentionReason String?
   urgencyScore    Float       @default(0)
   scoreBreakdown  Json?
+  riskLevel       String?
+  riskFactors     Json?
   lastSyncedAt    DateTime
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
@@ -261,4 +275,21 @@ model FlowConfig {
 
   @@unique([userId, repoFullName])
   @@index([userId])
+}
+
+model AiCache {
+  id            String   @id @default(cuid())
+  pullRequestId String?
+  repository    String?
+  featureType   String
+  resultJson    Json?
+  resultText    String?
+  generatedAt   DateTime @default(now())
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([pullRequestId, featureType])
+  @@index([featureType, expiresAt])
+  @@index([repository, featureType])
 }

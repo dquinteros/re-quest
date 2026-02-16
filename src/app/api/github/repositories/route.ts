@@ -22,6 +22,7 @@ function toRepositoryRecord(repo: AuthenticatedRepository): TrackedRepository | 
     fullName,
     owner,
     name,
+    defaultBranch: typeof repo.default_branch === "string" ? repo.default_branch : null,
   };
 }
 

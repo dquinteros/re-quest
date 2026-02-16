@@ -20,6 +20,7 @@ export class AuthenticationError extends Error {
 
 export interface PullRequestGitHubContext {
   id: string;
+  repositoryId: string;
   number: number;
   fullName: string;
   owner: string;
@@ -106,6 +107,7 @@ export async function getPullRequestGitHubContext(
 
   return {
     id: pullRequest.id,
+    repositoryId: pullRequest.repositoryId,
     number: pullRequest.number,
     fullName: pullRequest.repository.fullName,
     owner: parsed.owner,
@@ -142,6 +144,13 @@ export async function refreshAttentionForStoredPullRequest(
     ciState: pullRequest.ciState,
     isDraft: pullRequest.draft,
     updatedAt: pullRequest.githubUpdatedAt,
+    createdAt: pullRequest.githubCreatedAt,
+    isMergeable: pullRequest.mergeable,
+    additions: pullRequest.additions,
+    deletions: pullRequest.deletions,
+    commentCount: pullRequest.commentCount,
+    commitCount: pullRequest.commitCount,
+    labels: stringArrayFromUnknown(pullRequest.labels),
     assignees: stringArrayFromUnknown(pullRequest.assignees),
     requestedReviewers: stringArrayFromUnknown(pullRequest.requestedReviewers),
     body: pullRequest.body,

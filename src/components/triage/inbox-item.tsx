@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PullRequestListItem } from "@/types/pr";
 import { inboxItemControlId } from "./contracts";
@@ -55,6 +55,18 @@ export function InboxItem({ item, isActive, onSelect }: InboxItemProps) {
           {item.repository}
         </span>
         <div className="flex items-center gap-1.5 shrink-0">
+          {item.riskLevel && item.riskLevel !== "low" && (
+            <span
+              className={cn(
+                item.riskLevel === "critical" ? "text-red-500" :
+                item.riskLevel === "high" ? "text-orange-500" :
+                "text-yellow-500"
+              )}
+              title={`${item.riskLevel} risk`}
+            >
+              <Shield className="h-3 w-3" />
+            </span>
+          )}
           {item.flowViolation && (
             <span
               className="text-red-500"

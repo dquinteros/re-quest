@@ -29,6 +29,8 @@ interface DetailPanelProps {
   onMutateStringItem: (target: MutateTarget, value: string, method: "POST" | "DELETE") => void;
   aiReviewRunning?: boolean;
   onRunAiReview?: () => void;
+  refreshing?: boolean;
+  onRefreshPr?: () => void;
 }
 
 function DetailSkeleton() {
@@ -82,6 +84,8 @@ export function DetailPanel({
   onMutateStringItem,
   aiReviewRunning = false,
   onRunAiReview,
+  refreshing = false,
+  onRefreshPr,
 }: DetailPanelProps) {
   if (!selectedId) {
     return (
@@ -150,10 +154,13 @@ export function DetailPanel({
             urgencyScore={detail.urgencyScore}
             aiReviewRunning={aiReviewRunning}
             onRunAiReview={onRunAiReview}
+            refreshing={refreshing}
+            onRefreshPr={onRefreshPr}
           />
           <DetailMeta detail={detail} />
           <DetailDescription detail={detail} />
           <DetailActions
+            pullRequestId={detail.id}
             writing={writing}
             form={form}
             setFormField={setFormField}

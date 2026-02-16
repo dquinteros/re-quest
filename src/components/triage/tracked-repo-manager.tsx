@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronRight, Search } from "lucide-react";
+import { ChevronRight, GitBranch, Search } from "lucide-react";
 import type { TrackedRepository } from "@/types/pr";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -182,9 +182,17 @@ export function TrackedRepoManager({
                         repo.tracked && "bg-primary/5",
                       )}
                     >
-                      <label htmlFor={controlId} className="text-xs text-foreground cursor-pointer">
-                        <span className="text-muted-foreground">{repo.owner}/</span>
-                        {repo.name}
+                      <label htmlFor={controlId} className="text-xs text-foreground cursor-pointer flex items-center gap-2">
+                        <span>
+                          <span className="text-muted-foreground">{repo.owner}/</span>
+                          {repo.name}
+                        </span>
+                        {repo.defaultBranch && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
+                            <GitBranch className="h-2.5 w-2.5" />
+                            {repo.defaultBranch}
+                          </span>
+                        )}
                       </label>
                       <button
                         type="button"

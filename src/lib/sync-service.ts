@@ -41,6 +41,7 @@ export interface TrackedRepositoryRecord {
   fullName: string;
   owner: string;
   name: string;
+  defaultBranch?: string | null;
 }
 
 export interface RunSyncOptions {
@@ -246,13 +247,13 @@ async function resolveReviewState(
     draft: boolean;
     requestedReviewers: string[];
   },
-): Promise<"REVIEW_REQUESTED" | "APPROVED" | "CHANGES_REQUESTED" | "COMMENTED" | "UNREVIEWED" | "DRAFT"> {
+): Promise<{ state: "REVIEW_REQUESTED" | "APPROVED" | "CHANGES_REQUESTED" | "COMMENTED" | "UNREVIEWED" | "DRAFT"; reviews: PullReview[] }> {
   if (params.draft) {
-    return "DRAFT";
+    return { state: "DRAFT", reviews: [] };
   }
 
   if (params.requestedReviewers.length > 0) {
-    return "REVIEW_REQUESTED";
+    return { state: "REVIEW_REQUESTED", reviews: [] };
   }
 
   try {
@@ -263,10 +264,66 @@ async function resolveReviewState(
       per_page: 100,
     });
 
-    return mapReviewState(latestReview(reviews)?.state);
+    return { state: mapReviewState(latestReview(reviews)?.state), reviews };
   } catch {
-    return "UNREVIEWED";
+    return { state: "UNREVIEWED", reviews: [] };
   }
+}
+
+async function resolveLastActivityByViewer(
+  octokit: Octokit,
+  params: {
+    owner: string;
+    repo: string;
+    pullNumber: number;
+    reviews: PullReview[];
+    viewerLogin: string | null;
+  },
+): Promise<boolean> {
+  if (!params.viewerLogin) {
+    return false;
+  }
+
+  const viewer = params.viewerLogin.toLowerCase();
+
+  const latest = latestReview(params.reviews);
+  let lastReviewTimestamp = 0;
+  let lastReviewByViewer = false;
+  if (latest?.submitted_at) {
+    lastReviewTimestamp = new Date(latest.submitted_at).getTime();
+    lastReviewByViewer = (latest.user?.login ?? "").toLowerCase() === viewer;
+  }
+
+  let lastCommentTimestamp = 0;
+  let lastCommentByViewer = false;
+  try {
+    const comments = await octokit.rest.issues.listComments({
+      owner: params.owner,
+      repo: params.repo,
+      issue_number: params.pullNumber,
+      sort: "created",
+      direction: "desc",
+      per_page: 1,
+    });
+
+    const lastComment = comments.data[0];
+    if (lastComment) {
+      lastCommentTimestamp = new Date(lastComment.created_at).getTime();
+      lastCommentByViewer = (lastComment.user?.login ?? "").toLowerCase() === viewer;
+    }
+  } catch {
+    // If fetching comments fails, ignore and use review data only
+  }
+
+  if (lastReviewTimestamp === 0 && lastCommentTimestamp === 0) {
+    return false;
+  }
+
+  if (lastCommentTimestamp >= lastReviewTimestamp) {
+    return lastCommentByViewer;
+  }
+
+  return lastReviewByViewer;
 }
 
 async function resolveCiState(
@@ -278,27 +335,76 @@ async function resolveCiState(
   },
 ): Promise<"SUCCESS" | "FAILURE" | "PENDING" | "UNKNOWN"> {
   try {
-    const response = await octokit.rest.repos.getCombinedStatusForRef({
-      owner: params.owner,
-      repo: params.repo,
-      ref: params.ref,
-    });
+    const [statusResponse, checksResponse] = await Promise.all([
+      octokit.rest.repos.getCombinedStatusForRef({
+        owner: params.owner,
+        repo: params.repo,
+        ref: params.ref,
+      }),
+      octokit.rest.checks.listForRef({
+        owner: params.owner,
+        repo: params.repo,
+        ref: params.ref,
+      }),
+    ]);
 
-    if (response.data.total_count === 0) {
+    const hasStatuses = statusResponse.data.total_count > 0;
+    const hasCheckRuns = checksResponse.data.total_count > 0;
+
+    if (!hasStatuses && !hasCheckRuns) {
+      console.info(
+        `[CI] No statuses or check runs found for ${params.owner}/${params.repo}@${params.ref.slice(0, 8)}`,
+      );
       return "UNKNOWN";
     }
 
-    if (
-      response.data.state === "failure" ||
-      response.data.state === "pending" ||
-      response.data.state === "success" ||
-      response.data.state === "unknown"
-    ) {
-      return mapCombinedStatusToCiState(response.data.state);
+    console.info(
+      `[CI] ${params.owner}/${params.repo}@${params.ref.slice(0, 8)}: statuses=${statusResponse.data.total_count}, checkRuns=${checksResponse.data.total_count}`,
+    );
+
+    const statusState: "SUCCESS" | "FAILURE" | "PENDING" | "UNKNOWN" =
+      hasStatuses
+        ? mapCombinedStatusToCiState(
+            statusResponse.data.state as "failure" | "pending" | "success" | "unknown",
+          )
+        : "UNKNOWN";
+
+    const checkRuns = checksResponse.data.check_runs;
+    let checksState: "SUCCESS" | "FAILURE" | "PENDING" | "UNKNOWN" = "UNKNOWN";
+    if (hasCheckRuns) {
+      const hasFailure = checkRuns.some(
+        (run) => run.conclusion === "failure" || run.conclusion === "timed_out" || run.conclusion === "cancelled",
+      );
+      const hasPending = checkRuns.some(
+        (run) => run.status === "queued" || run.status === "in_progress",
+      );
+
+      if (hasFailure) {
+        checksState = "FAILURE";
+      } else if (hasPending) {
+        checksState = "PENDING";
+      } else {
+        checksState = "SUCCESS";
+      }
+    }
+
+    if (statusState === "FAILURE" || checksState === "FAILURE") {
+      return "FAILURE";
+    }
+    if (statusState === "PENDING" || checksState === "PENDING") {
+      return "PENDING";
+    }
+    if (statusState === "SUCCESS" || checksState === "SUCCESS") {
+      return "SUCCESS";
     }
 
     return "UNKNOWN";
-  } catch {
+  } catch (error) {
+    const status = (error as { status?: number }).status;
+    console.warn(
+      `[CI] resolveCiState failed for ${params.owner}/${params.repo}@${params.ref.slice(0, 8)}:`,
+      { status, message: error instanceof Error ? error.message : String(error) },
+    );
     return "UNKNOWN";
   }
 }
@@ -344,12 +450,14 @@ function toTrackedRepositoryRecord(repo: {
   fullName: string;
   owner: string;
   name: string;
+  defaultBranch?: string | null;
 }): TrackedRepositoryRecord {
   return {
     id: repo.id,
     fullName: repo.fullName,
     owner: repo.owner,
     name: repo.name,
+    defaultBranch: repo.defaultBranch ?? null,
   };
 }
 
@@ -393,6 +501,7 @@ async function upsertTrackedRepositoryFromGitHub(params: {
       fullName: true,
       owner: true,
       name: true,
+      defaultBranch: true,
     },
   });
 
@@ -410,6 +519,7 @@ export async function listTrackedRepositoriesForUser(userId: string): Promise<Tr
       fullName: true,
       owner: true,
       name: true,
+      defaultBranch: true,
     },
     orderBy: {
       fullName: "asc",
@@ -549,6 +659,167 @@ async function resolveTrackedRepoRefsForSync(params: {
   };
 }
 
+export async function syncSinglePullRequest(params: {
+  octokit: Octokit;
+  owner: string;
+  repo: string;
+  pullNumber: number;
+  repositoryId: string;
+  viewerLogin: string | null;
+}): Promise<string> {
+  const { octokit, owner, repo, pullNumber, repositoryId, viewerLogin } = params;
+
+  const { data: pull } = await octokit.rest.pulls.get({
+    owner,
+    repo,
+    pull_number: pullNumber,
+  });
+
+  const labels = pull.labels
+    .map((label) => (typeof label === "string" ? label : label.name))
+    .filter((label): label is string => Boolean(label));
+
+  const assignees = (pull.assignees ?? [])
+    .map((assignee) => assignee?.login)
+    .filter((login): login is string => Boolean(login));
+
+  const reviewerUsers = (pull.requested_reviewers ?? [])
+    .map((reviewer) => ("login" in reviewer ? reviewer.login : undefined))
+    .filter((login): login is string => Boolean(login));
+
+  const reviewerTeams = (pull.requested_teams ?? [])
+    .map((team) => team.slug)
+    .filter((slug): slug is string => Boolean(slug))
+    .map((slug) => `team:${slug}`);
+
+  const requestedReviewers = [...reviewerUsers, ...reviewerTeams];
+
+  const { state: reviewState, reviews } = await resolveReviewState(octokit, {
+    owner,
+    repo,
+    pullNumber: pull.number,
+    draft: Boolean(pull.draft),
+    requestedReviewers,
+  });
+
+  const ciState = await resolveCiState(octokit, {
+    owner,
+    repo,
+    ref: pull.head.sha,
+  });
+
+  const lastActivityByViewer = await resolveLastActivityByViewer(octokit, {
+    owner,
+    repo,
+    pullNumber: pull.number,
+    reviews,
+    viewerLogin,
+  });
+
+  const additions = pull.additions ?? null;
+  const deletions = pull.deletions ?? null;
+  const changedFiles = pull.changed_files ?? null;
+  const commentCount = (pull.comments ?? 0) + (pull.review_comments ?? 0);
+  const commitCount = pull.commits ?? null;
+  const headRef = pull.head.ref ?? null;
+  const baseRef = pull.base.ref ?? null;
+
+  const state: "OPEN" | "CLOSED" | "MERGED" = pull.merged_at
+    ? "MERGED"
+    : pull.state === "closed"
+      ? "CLOSED"
+      : "OPEN";
+
+  const pullRequest = await prisma.pullRequest.upsert({
+    where: {
+      repositoryId_number: {
+        repositoryId,
+        number: pull.number,
+      },
+    },
+    create: {
+      repositoryId,
+      githubPullRequestId: BigInt(pull.id),
+      number: pull.number,
+      nodeId: pull.node_id,
+      title: pull.title,
+      body: pull.body,
+      state,
+      draft: Boolean(pull.draft),
+      url: pull.html_url,
+      authorLogin: pull.user?.login ?? "unknown",
+      authorAvatarUrl: pull.user?.avatar_url ?? null,
+      ciState,
+      reviewState,
+      githubCreatedAt: new Date(pull.created_at),
+      githubUpdatedAt: new Date(pull.updated_at),
+      lastActivityAt: new Date(pull.updated_at),
+      labels,
+      assignees,
+      requestedReviewers,
+      milestone: pull.milestone?.title ?? null,
+      projects: [],
+      raw: asInputJson(pull),
+      additions,
+      deletions,
+      changedFiles,
+      commentCount,
+      commitCount,
+      headRef,
+      baseRef,
+    },
+    update: {
+      githubPullRequestId: BigInt(pull.id),
+      nodeId: pull.node_id,
+      title: pull.title,
+      body: pull.body,
+      state,
+      draft: Boolean(pull.draft),
+      url: pull.html_url,
+      authorLogin: pull.user?.login ?? "unknown",
+      authorAvatarUrl: pull.user?.avatar_url ?? null,
+      ciState,
+      reviewState,
+      githubUpdatedAt: new Date(pull.updated_at),
+      lastActivityAt: new Date(pull.updated_at),
+      labels,
+      assignees,
+      requestedReviewers,
+      milestone: pull.milestone?.title ?? null,
+      raw: asInputJson(pull),
+      additions,
+      deletions,
+      changedFiles,
+      commentCount,
+      commitCount,
+      headRef,
+      baseRef,
+    },
+  });
+
+  await upsertAttentionState({
+    pullRequestId: pullRequest.id,
+    reviewState,
+    ciState,
+    isDraft: Boolean(pull.draft),
+    updatedAt: new Date(pull.updated_at),
+    createdAt: new Date(pull.created_at),
+    isMergeable: pullRequest.mergeable,
+    additions,
+    deletions,
+    commentCount,
+    commitCount,
+    labels,
+    assignees,
+    requestedReviewers,
+    body: pull.body,
+    viewerLogin,
+    lastActivityByViewer,
+  });
+
+  return pullRequest.id;
+}
+
 async function syncRepository(
   params: {
     octokit: Octokit;
@@ -589,7 +860,7 @@ async function syncRepository(
       const labels = extractLabels(pull);
       const assignees = extractAssignees(pull);
       const requestedReviewers = extractRequestedReviewers(pull);
-      const reviewState = await resolveReviewState(octokit, {
+      const { state: reviewState, reviews } = await resolveReviewState(octokit, {
         owner,
         repo,
         pullNumber: pull.number,
@@ -602,6 +873,35 @@ async function syncRepository(
         repo,
         ref: pull.head.sha,
       });
+
+      const lastActivityByViewer = await resolveLastActivityByViewer(octokit, {
+        owner,
+        repo,
+        pullNumber: pull.number,
+        reviews,
+        viewerLogin: params.viewerLogin,
+      });
+
+      if (ciState === "UNKNOWN") {
+        errors.push({
+          repository: fullName,
+          pullNumber: pull.number,
+          message: `CI state could not be determined for PR #${pull.number} (head ${pull.head.sha.slice(0, 8)})`,
+        });
+      }
+
+      const prDetail = await octokit.rest.pulls.get({
+        owner,
+        repo,
+        pull_number: pull.number,
+      });
+
+      const additions = prDetail.data.additions ?? null;
+      const deletions = prDetail.data.deletions ?? null;
+      const changedFiles = prDetail.data.changed_files ?? null;
+      const commentCount =
+        (prDetail.data.comments ?? 0) + (prDetail.data.review_comments ?? 0);
+      const commitCount = prDetail.data.commits ?? null;
 
       const headRef = pull.head.ref ?? null;
       const baseRef = pull.base.ref ?? null;
@@ -636,6 +936,11 @@ async function syncRepository(
           milestone: pull.milestone?.title ?? null,
           projects: [],
           raw: asInputJson(pull),
+          additions,
+          deletions,
+          changedFiles,
+          commentCount,
+          commitCount,
           headRef,
           baseRef,
         },
@@ -658,6 +963,11 @@ async function syncRepository(
           requestedReviewers,
           milestone: pull.milestone?.title ?? null,
           raw: asInputJson(pull),
+          additions,
+          deletions,
+          changedFiles,
+          commentCount,
+          commitCount,
           headRef,
           baseRef,
         },
@@ -669,10 +979,18 @@ async function syncRepository(
         ciState,
         isDraft: Boolean(pull.draft),
         updatedAt: new Date(pull.updated_at),
+        createdAt: new Date(pull.created_at),
+        isMergeable: pullRequest.mergeable,
+        additions,
+        deletions,
+        commentCount,
+        commitCount,
+        labels,
         assignees,
         requestedReviewers,
         body: pull.body,
         viewerLogin: params.viewerLogin,
+        lastActivityByViewer,
       });
 
       upsertedCount += 1;

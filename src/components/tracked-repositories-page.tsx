@@ -25,7 +25,7 @@ function normalizeTrackedRepo(raw: unknown): TrackedRepository | null {
     const fullName = raw.trim();
     const [owner = "", name = ""] = fullName.split("/", 2);
     if (!owner || !name) return null;
-    return { fullName, owner, name };
+    return { fullName, owner, name, defaultBranch: null };
   }
 
   if (!raw || typeof raw !== "object") return null;
@@ -52,10 +52,18 @@ function normalizeTrackedRepo(raw: unknown): TrackedRepository | null {
         ? candidate.repo
         : parsedName;
 
+  const defaultBranch =
+    typeof candidate.defaultBranch === "string"
+      ? candidate.defaultBranch
+      : typeof candidate.default_branch === "string"
+        ? candidate.default_branch
+        : null;
+
   return {
     fullName,
     owner: owner.trim() || parsedOwner,
     name: name.trim() || parsedName,
+    defaultBranch,
   };
 }
 
@@ -148,7 +156,13 @@ export function TrackedRepositoriesPage({
 
     for (const repo of trackedRepos) {
       const key = repo.fullName.toLowerCase();
-      if (!merged.has(key)) {
+      const existing = merged.get(key);
+      if (existing) {
+        existing.tracked = true;
+        if (repo.defaultBranch && !existing.defaultBranch) {
+          existing.defaultBranch = repo.defaultBranch;
+        }
+      } else {
         merged.set(key, { ...repo, tracked: true });
       }
     }

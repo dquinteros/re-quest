@@ -14,8 +14,11 @@ import {
 } from "@/components/ui/accordion";
 import { TRIAGE_CONTROL_IDS, type MutateTarget, type PendingReviewMode, type ReviewEvent } from "./contracts";
 import type { MutationFormState } from "@/hooks/use-pr-mutations";
+import { AiLabelSuggestions } from "./ai-label-suggestions";
+import { AiReviewerSuggestions } from "./ai-reviewer-suggestions";
 
 interface DetailActionsProps {
+  pullRequestId?: string;
   writing: boolean;
   form: MutationFormState;
   setFormField: <K extends keyof MutationFormState>(key: K, value: MutationFormState[K]) => void;
@@ -27,6 +30,7 @@ interface DetailActionsProps {
 }
 
 export function DetailActions({
+  pullRequestId,
   writing,
   form,
   setFormField,
@@ -114,7 +118,7 @@ export function DetailActions({
               <AccordionTrigger className="py-2 px-3 text-xs font-medium">
                 Labels
               </AccordionTrigger>
-              <AccordionContent className="px-3 pb-3">
+              <AccordionContent className="px-3 pb-3 space-y-2">
                 <div className="flex gap-2">
                   <Input
                     id={TRIAGE_CONTROL_IDS.labelInput}
@@ -148,6 +152,13 @@ export function DetailActions({
                     Remove
                   </Button>
                 </div>
+                {pullRequestId && (
+                  <AiLabelSuggestions
+                    pullRequestId={pullRequestId}
+                    onApplyLabel={(label) => onMutateStringItem("labels", label, "POST")}
+                    disabled={writing}
+                  />
+                )}
               </AccordionContent>
             </AccordionItem>
 
@@ -232,6 +243,13 @@ export function DetailActions({
                     Remove
                   </Button>
                 </div>
+                {pullRequestId && (
+                  <AiReviewerSuggestions
+                    pullRequestId={pullRequestId}
+                    onApplyReviewer={(login) => onMutateStringItem("reviewers", login, "POST")}
+                    disabled={writing}
+                  />
+                )}
               </AccordionContent>
             </AccordionItem>
 

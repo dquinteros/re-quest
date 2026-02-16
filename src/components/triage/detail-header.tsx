@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, Bot, Loader2 } from "lucide-react";
+import { ExternalLink, Bot, Loader2, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TRIAGE_CONTROL_IDS } from "./contracts";
@@ -27,6 +27,8 @@ interface DetailHeaderProps {
   urgencyScore: number;
   aiReviewRunning?: boolean;
   onRunAiReview?: () => void;
+  refreshing?: boolean;
+  onRefreshPr?: () => void;
 }
 
 export function DetailHeader({
@@ -37,6 +39,8 @@ export function DetailHeader({
   urgencyScore,
   aiReviewRunning = false,
   onRunAiReview,
+  refreshing = false,
+  onRefreshPr,
 }: DetailHeaderProps) {
   return (
     <header className="flex items-start justify-between gap-4 pb-4 border-b border-border">
@@ -54,6 +58,19 @@ export function DetailHeader({
         </h2>
       </div>
       <div className="flex items-center gap-2 shrink-0">
+        {onRefreshPr && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-auto py-1.5 px-3 text-xs font-medium"
+            disabled={refreshing}
+            onClick={onRefreshPr}
+            title="Refresh this PR from GitHub"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${refreshing ? "animate-spin" : ""}`} />
+            {refreshing ? "Refreshing…" : "Refresh"}
+          </Button>
+        )}
         {onRunAiReview && (
           <Button
             id={TRIAGE_CONTROL_IDS.aiReviewRun}

@@ -47,6 +47,10 @@ function scoreBreakdownFromJson(value: unknown): AttentionScoreBreakdown | null 
     stalenessBoost: record.stalenessBoost as number,
     draftPenalty: record.draftPenalty as number,
     mentionBoost: record.mentionBoost as number,
+    sizeBoost: (record.sizeBoost as number) ?? 0,
+    activityBoost: (record.activityBoost as number) ?? 0,
+    commitBoost: (record.commitBoost as number) ?? 0,
+    myLastActivityPenalty: (record.myLastActivityPenalty as number) ?? 0,
     finalScore: record.finalScore as number,
   };
 }
@@ -107,6 +111,7 @@ export function toPullRequestListItem(
     baseRef: record.baseRef,
     flowPhase,
     flowViolation,
+    riskLevel: record.attentionState?.riskLevel ?? null,
   };
 }
 

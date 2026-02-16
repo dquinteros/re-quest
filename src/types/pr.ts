@@ -15,6 +15,10 @@ export interface AttentionScoreBreakdown {
   stalenessBoost: number;
   draftPenalty: number;
   mentionBoost: number;
+  sizeBoost: number;
+  activityBoost: number;
+  commitBoost: number;
+  myLastActivityPenalty: number;
   finalScore: number;
 }
 
@@ -48,12 +52,15 @@ export interface PullRequestListItem {
   baseRef: string | null;
   flowPhase: string | null;
   flowViolation: FlowViolationInfo | null;
+  riskLevel?: string | null;
 }
 
 export interface PullRequestDetail extends PullRequestListItem {
   body: string | null;
   projects: string[];
   scoreBreakdown: AttentionScoreBreakdown | null;
+  aiSummary?: AiSummary | null;
+  riskAssessment?: RiskAssessment | null;
 }
 
 export interface InboxResponse {
@@ -69,6 +76,41 @@ export interface InboxResponse {
   syncedAt: string | null;
 }
 
+export interface AiSummary {
+  summary: string;
+  keyChanges: Array<{ file: string; description: string }>;
+  changeType: "feature" | "bugfix" | "refactor" | "docs" | "chore" | "other";
+}
+
+export interface RiskAssessment {
+  riskLevel: "low" | "medium" | "high" | "critical";
+  riskFactors: Array<{
+    category: "security" | "data" | "api" | "infrastructure" | "quality";
+    description: string;
+    severity: "low" | "medium" | "high";
+  }>;
+  explanation: string;
+}
+
+export interface LabelSuggestion {
+  name: string;
+  confidence: number;
+  reason: string;
+}
+
+export interface ReviewerSuggestion {
+  login: string;
+  score: number;
+  reasons: string[];
+}
+
+export interface PrRelationship {
+  prIdA: string;
+  prIdB: string;
+  type: "related" | "depends-on" | "conflicts";
+  reason: string;
+}
+
 export interface ApiError {
   error: string;
   details?: string;
@@ -78,6 +120,7 @@ export interface TrackedRepository {
   fullName: string;
   owner: string;
   name: string;
+  defaultBranch?: string | null;
 }
 
 export interface TrackedReposResponse {
