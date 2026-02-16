@@ -38,6 +38,7 @@ export interface PullRequestListItem {
   needsAttention: boolean;
   attentionReason: string | null;
   urgencyScore: number;
+  hasConflicts: boolean | null;
 }
 
 export interface PullRequestDetail extends PullRequestListItem {
@@ -53,6 +54,7 @@ export interface InboxResponse {
     needsReview: number;
     changesRequestedFollowUp: number;
     failingCi: number;
+    hasConflicts: number;
   };
   syncedAt: string | null;
 }

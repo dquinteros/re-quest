@@ -4,6 +4,7 @@
 
 :root {
   color-scheme: light;
+  --nav-height: 3.5rem;
   --background: 45 38% 98%;
   --foreground: 165 25% 14%;
   --card: 0 0% 100%;
@@ -25,10 +26,22 @@
   --ring: 164 41% 38%;
   --radius: 0.75rem;
 
-  --bg-paper: #fffdf8;
-  --bg-ink: #11251f;
-  --bg-surface: #ffffff;
-  --line-soft: #dde9e1;
+  --warning: 30 80% 50%;
+  --warning-foreground: 28 100% 26%;
+
+  --badge-border: 38 50% 80%;
+  --badge-bg: 38 80% 96%;
+  --badge-heading: 24 35% 34%;
+  --badge-count: 24 40% 10%;
+
+  --urgency-critical-bg: 10 100% 89%;
+  --urgency-critical-fg: 10 100% 28%;
+  --urgency-high-bg: 35 100% 87%;
+  --urgency-high-fg: 35 100% 22%;
+  --urgency-medium-bg: 72 60% 88%;
+  --urgency-medium-fg: 72 100% 16%;
+  --urgency-low-bg: 180 30% 90%;
+  --urgency-low-fg: 180 90% 20%;
 }
 
 .dark {
@@ -53,10 +66,22 @@
   --input: 223 16% 30%;
   --ring: 217 70% 64%;
 
-  --bg-paper: #0f1219;
-  --bg-ink: #e8ecf5;
-  --bg-surface: #141923;
-  --line-soft: #2e3748;
+  --warning: 36 70% 55%;
+  --warning-foreground: 36 60% 78%;
+
+  --badge-border: 38 30% 26%;
+  --badge-bg: 38 30% 12%;
+  --badge-heading: 38 30% 65%;
+  --badge-count: 38 40% 90%;
+
+  --urgency-critical-bg: 10 50% 25%;
+  --urgency-critical-fg: 10 100% 89%;
+  --urgency-high-bg: 35 45% 26%;
+  --urgency-high-fg: 35 100% 87%;
+  --urgency-medium-bg: 72 35% 23%;
+  --urgency-medium-fg: 72 55% 82%;
+  --urgency-low-bg: 210 35% 22%;
+  --urgency-low-fg: 210 60% 88%;
 }
 
 *,
@@ -123,7 +148,6 @@ body {
     font-family: inherit;
   }
 
-  strong,
   code,
   pre {
     font-family: var(--font-jetbrains-mono), "Courier New", monospace;
@@ -133,6 +157,159 @@ body {
 ::selection {
   background: hsl(157 46% 73%);
   color: hsl(160 50% 14%);
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ── GitHub-flavored Markdown prose overrides ── */
+
+.gh-markdown {
+  @apply text-sm leading-relaxed;
+}
+
+.gh-markdown h1,
+.gh-markdown h2 {
+  @apply pb-[0.3em] border-b border-border;
+}
+
+.gh-markdown h1 { @apply text-2xl font-semibold mt-6 mb-4; }
+.gh-markdown h2 { @apply text-xl font-semibold mt-6 mb-4; }
+.gh-markdown h3 { @apply text-base font-semibold mt-6 mb-4; }
+.gh-markdown h4 { @apply text-sm font-semibold mt-6 mb-4; }
+.gh-markdown h5 { @apply text-xs font-semibold mt-6 mb-4; }
+.gh-markdown h6 { @apply text-xs font-semibold mt-6 mb-4 text-muted-foreground; }
+
+.gh-markdown p {
+  @apply my-4;
+}
+
+.gh-markdown p:first-child {
+  @apply mt-0;
+}
+
+.gh-markdown p:last-child {
+  @apply mb-0;
+}
+
+.gh-markdown a {
+  @apply text-primary underline decoration-primary/40 hover:decoration-primary/80 transition-colors;
+}
+
+.gh-markdown strong {
+  @apply font-semibold;
+  font-family: inherit;
+}
+
+.gh-markdown code {
+  @apply text-[0.85em] px-[0.4em] py-[0.2em] rounded-md bg-muted font-normal;
+  font-family: var(--font-jetbrains-mono), "Courier New", monospace;
+}
+
+.gh-markdown pre {
+  @apply my-4 p-4 rounded-lg bg-muted/60 border border-border overflow-x-auto;
+  font-family: var(--font-jetbrains-mono), "Courier New", monospace;
+}
+
+.gh-markdown pre code {
+  @apply p-0 bg-transparent text-[0.85em] leading-snug;
+}
+
+.gh-markdown blockquote {
+  @apply my-4 pl-4 border-l-[3px] border-border text-muted-foreground;
+}
+
+.gh-markdown blockquote > :first-child { @apply mt-0; }
+.gh-markdown blockquote > :last-child { @apply mb-0; }
+
+.gh-markdown ul {
+  @apply my-4 pl-8 list-disc;
+}
+
+.gh-markdown ol {
+  @apply my-4 pl-8 list-decimal;
+}
+
+.gh-markdown li {
+  @apply my-1;
+}
+
+.gh-markdown li > p {
+  @apply my-2;
+}
+
+.gh-markdown li + li {
+  @apply mt-1;
+}
+
+/* Task list (GFM) */
+.gh-markdown ul:has(> li > input[type="checkbox"]) {
+  @apply list-none pl-4;
+}
+
+.gh-markdown li > input[type="checkbox"] {
+  @apply mr-2 align-middle relative -top-px accent-primary;
+}
+
+/* Tables */
+.gh-markdown table {
+  @apply my-4 w-full border-collapse text-sm;
+}
+
+.gh-markdown th {
+  @apply px-3 py-2 text-left font-semibold border border-border bg-muted/40;
+}
+
+.gh-markdown td {
+  @apply px-3 py-2 border border-border;
+}
+
+.gh-markdown tr:nth-child(2n) {
+  @apply bg-muted/20;
+}
+
+/* Horizontal rules */
+.gh-markdown hr {
+  @apply my-6 border-t-2 border-border;
+}
+
+/* Images */
+.gh-markdown img {
+  @apply max-w-full rounded-md my-4;
+}
+
+/* Details / summary (common in GitHub PR templates) */
+.gh-markdown details {
+  @apply my-4;
+}
+
+.gh-markdown details summary {
+  @apply cursor-pointer font-medium select-none;
+}
+
+.gh-markdown details[open] summary {
+  @apply mb-2;
+}
+
+/* Keyboard shortcuts */
+.gh-markdown kbd {
+  @apply inline-block px-1.5 py-0.5 text-xs font-mono border border-border rounded bg-muted shadow-sm;
+}
+
+/* Diff / patch styling (fenced code with diff language is common) */
+.gh-markdown del {
+  @apply bg-destructive/10 text-destructive line-through;
+}
+
+.gh-markdown ins {
+  @apply bg-primary/10 text-primary no-underline;
 }
 
 @media (max-width: 680px) {

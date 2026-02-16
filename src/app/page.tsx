@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
+import { AppNav } from "@/components/app-nav";
 import { PrAttentionManager } from "@/components/pr-attention-manager";
 import { useTheme } from "@/hooks/use-theme";
 import type { AuthSessionResponse, AuthUser } from "@/types/pr";
@@ -10,111 +11,6 @@ const SESSION_ENDPOINT = "/api/auth/session";
 const SIGN_IN_ENDPOINT = "/api/auth/signin/github";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
-
-const shellStyle: CSSProperties = {
-  minHeight: "100dvh",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: "clamp(1rem, 4vw, 2.5rem)",
-};
-
-const cardStyle: CSSProperties = {
-  width: "100%",
-  maxWidth: "44rem",
-  borderRadius: "1rem",
-  border: "1px solid hsl(var(--border))",
-  background:
-    "linear-gradient(180deg, hsl(var(--card)) 0%, hsl(var(--muted) / 0.55) 100%)",
-  boxShadow: "0 20px 50px hsl(var(--foreground) / 0.16)",
-  padding: "clamp(1.25rem, 3.5vw, 2rem)",
-  display: "grid",
-  gap: "1rem",
-};
-
-const headingStyle: CSSProperties = {
-  display: "grid",
-  gap: "0.5rem",
-};
-
-const eyebrowStyle: CSSProperties = {
-  display: "inline-flex",
-  width: "fit-content",
-  padding: "0.275rem 0.625rem",
-  borderRadius: "999px",
-  background: "hsl(var(--primary) / 0.14)",
-  border: "1px solid hsl(var(--primary) / 0.3)",
-  color: "hsl(var(--primary))",
-  fontSize: "0.75rem",
-  fontWeight: 700,
-  letterSpacing: "0.04em",
-  textTransform: "uppercase",
-};
-
-const titleStyle: CSSProperties = {
-  fontSize: "clamp(1.5rem, 3.3vw, 2rem)",
-  lineHeight: 1.1,
-  letterSpacing: "-0.02em",
-};
-
-const subtitleStyle: CSSProperties = {
-  color: "hsl(var(--foreground) / 0.8)",
-  lineHeight: 1.45,
-  maxWidth: "62ch",
-};
-
-const skeletonGroupStyle: CSSProperties = {
-  display: "grid",
-  gap: "0.625rem",
-};
-
-const ctaStyle: CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  width: "100%",
-  borderRadius: "0.75rem",
-  border: "1px solid hsl(var(--primary) / 0.45)",
-  background: "linear-gradient(180deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.84) 100%)",
-  color: "hsl(var(--primary-foreground))",
-  fontWeight: 700,
-  padding: "0.875rem 1rem",
-  lineHeight: 1.2,
-  boxShadow: "0 10px 24px hsl(var(--primary) / 0.35)",
-};
-
-const helperTextStyle: CSSProperties = {
-  color: "hsl(var(--muted-foreground))",
-  fontSize: "0.9rem",
-  lineHeight: 1.4,
-};
-
-const errorAlertStyle: CSSProperties = {
-  borderRadius: "0.75rem",
-  border: "1px solid hsl(var(--destructive) / 0.45)",
-  background: "hsl(var(--destructive) / 0.16)",
-  color: "hsl(var(--destructive))",
-  padding: "0.75rem 0.875rem",
-  display: "grid",
-  gap: "0.25rem",
-  lineHeight: 1.35,
-};
-
-const modeToggleRowStyle: CSSProperties = {
-  display: "flex",
-  justifyContent: "flex-end",
-};
-
-const modeToggleButtonStyle: CSSProperties = {
-  borderRadius: "0.625rem",
-  border: "1px solid hsl(var(--border))",
-  background: "hsl(var(--secondary))",
-  color: "hsl(var(--secondary-foreground))",
-  padding: "0.4rem 0.7rem",
-  fontSize: "0.82rem",
-  fontWeight: 600,
-  cursor: "pointer",
-};
 
 function AuthShell({
   children,
@@ -126,20 +22,21 @@ function AuthShell({
   onToggleTheme: () => void;
 }) {
   return (
-    <main className="mx-auto flex min-h-screen w-full items-center justify-center p-4 sm:p-8" style={shellStyle}>
-      <section
-        className="w-full max-w-2xl rounded-2xl border bg-white/95 p-5 shadow-xl sm:p-8"
-        style={cardStyle}
-        aria-live="polite"
-      >
-        <div style={modeToggleRowStyle}>
-          <button type="button" onClick={onToggleTheme} style={modeToggleButtonStyle}>
-            {themeLabel}
-          </button>
-        </div>
-        {children}
-      </section>
-    </main>
+    <>
+      <AppNav
+        themeLabel={themeLabel}
+        authenticated={false}
+        onToggleTheme={onToggleTheme}
+      />
+      <main className="mx-auto flex min-h-[calc(100dvh-var(--nav-height,3.5rem))] w-full items-center justify-center p-[clamp(1rem,4vw,2.5rem)]">
+        <section
+          className="grid w-full max-w-[44rem] gap-4 rounded-2xl border border-border bg-[linear-gradient(180deg,hsl(var(--card))_0%,hsl(var(--muted)/0.55)_100%)] p-[clamp(1.25rem,3.5vw,2rem)] shadow-[0_20px_50px_hsl(var(--foreground)/0.16)]"
+          aria-live="polite"
+        >
+          {children}
+        </section>
+      </main>
+    </>
   );
 }
 
@@ -147,12 +44,13 @@ function SkeletonLine({ width, height = "0.75rem" }: { width: string; height?: s
   return (
     <span
       aria-hidden="true"
-      className="block rounded-full bg-slate-200"
+      className="block rounded-full"
       style={{
         width,
         height,
-        borderRadius: "999px",
         background: "linear-gradient(90deg, hsl(var(--muted) / 0.55), hsl(var(--muted) / 0.95))",
+        animation: "shimmer 1.5s infinite",
+        backgroundSize: "200% 100%",
       }}
     />
   );
@@ -273,21 +171,25 @@ export default function Home() {
         themeLabel={theme === "dark" ? "Light mode" : "Dark mode"}
         onToggleTheme={toggleTheme}
       >
-        <header style={headingStyle}>
-          <span style={eyebrowStyle}>Authentication</span>
-          <h1 style={titleStyle}>PR Attention Manager</h1>
-          <p style={subtitleStyle}>
+        <header className="grid gap-2">
+          <span className="inline-flex w-fit rounded-full border border-primary/30 bg-primary/[0.14] px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-primary">
+            Authentication
+          </span>
+          <h1 className="text-[clamp(1.5rem,3.3vw,2rem)] leading-tight tracking-tight">
+            PR Attention Manager
+          </h1>
+          <p className="max-w-[62ch] leading-relaxed text-foreground/80">
             Checking your GitHub sign-in status before loading repository attention queues.
           </p>
         </header>
 
-        <section style={skeletonGroupStyle} aria-label="Loading session details">
+        <section className="grid gap-2.5" aria-label="Loading session details">
           <SkeletonLine width="68%" />
           <SkeletonLine width="84%" />
           <SkeletonLine width="56%" />
         </section>
 
-        <section style={skeletonGroupStyle} aria-label="Loading actions">
+        <section className="grid gap-2.5" aria-label="Loading actions">
           <SkeletonLine width="100%" height="2.75rem" />
           <SkeletonLine width="44%" />
         </section>
@@ -301,16 +203,23 @@ export default function Home() {
         themeLabel={theme === "dark" ? "Light mode" : "Dark mode"}
         onToggleTheme={toggleTheme}
       >
-        <header style={headingStyle}>
-          <span style={eyebrowStyle}>Authentication Required</span>
-          <h1 style={titleStyle}>PR Attention Manager</h1>
-          <p style={subtitleStyle}>
+        <header className="grid gap-2">
+          <span className="inline-flex w-fit rounded-full border border-primary/30 bg-primary/[0.14] px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-primary">
+            Authentication Required
+          </span>
+          <h1 className="text-[clamp(1.5rem,3.3vw,2rem)] leading-tight tracking-tight">
+            PR Attention Manager
+          </h1>
+          <p className="max-w-[62ch] leading-relaxed text-foreground/80">
             Sign in with GitHub to load your tracked repositories and prioritize pull requests.
           </p>
         </header>
 
         {authError && (
-          <section role="alert" style={errorAlertStyle}>
+          <section
+            role="alert"
+            className="grid gap-1 rounded-xl border border-destructive/45 bg-destructive/[0.16] px-3.5 py-3 leading-snug text-destructive"
+          >
             <strong>Session check failed</strong>
             <span>{authError}</span>
           </section>
@@ -318,25 +227,27 @@ export default function Home() {
 
         <a
           href={SIGN_IN_ENDPOINT}
-          className="inline-flex w-full items-center justify-center rounded-xl border px-4 py-3 text-center font-semibold shadow-sm"
-          style={ctaStyle}
+          aria-label="Sign in with GitHub"
+          className="inline-flex w-full items-center justify-center rounded-xl border border-primary/45 bg-[linear-gradient(180deg,hsl(var(--primary))_0%,hsl(var(--primary)/0.84)_100%)] px-4 py-3.5 text-center font-bold leading-tight text-primary-foreground shadow-[0_10px_24px_hsl(var(--primary)/0.35)] transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:translate-y-0"
         >
           Continue with GitHub
         </a>
 
-        <p style={helperTextStyle}>You will be redirected to GitHub and returned here after sign-in.</p>
+        <p className="text-[0.9rem] leading-snug text-muted-foreground">
+          You will be redirected to GitHub and returned here after sign-in.
+        </p>
       </AuthShell>
     );
   }
 
   return (
-      <PrAttentionManager
-        viewerLabel={viewerLabel}
-        theme={theme}
-        onToggleTheme={toggleTheme}
-        onSignedOut={() => {
-          setSession({ authenticated: false, user: null });
-          setStatus("unauthenticated");
+    <PrAttentionManager
+      viewerLabel={viewerLabel}
+      theme={theme}
+      onToggleTheme={toggleTheme}
+      onSignedOut={() => {
+        setSession({ authenticated: false, user: null });
+        setStatus("unauthenticated");
       }}
     />
   );

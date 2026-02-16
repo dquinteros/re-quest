@@ -42,7 +42,11 @@ export interface UseThemeResult {
 }
 
 export function useTheme(): UseThemeResult {
-  const [theme, setThemeState] = useState<Theme>(() => resolvePreferredTheme());
+  const [theme, setThemeState] = useState<Theme>("light");
+
+  useEffect(() => {
+    setThemeState(resolvePreferredTheme());
+  }, []);
 
   useEffect(() => {
     applyThemeClass(theme);

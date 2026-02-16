@@ -98,7 +98,7 @@ npm run prisma:studio
 ## Frontend Behavior
 
 - Auth gate: unauthenticated users see a GitHub sign-in screen
-- Tracked repositories: list/remove tracked repos and add from a selectable GitHub repo list
+- Tracked repositories: managed on `/tracked-repositories` (list/remove tracked repos and add from a selectable GitHub repo list)
 - Inbox list: filter/search/sort and select PRs quickly
 - Detail panel: context, urgency score breakdown, and write-action forms
 - Badge counters: needs review, changes requested follow-up, failing CI

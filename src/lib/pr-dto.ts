@@ -71,6 +71,7 @@ export function toPullRequestListItem(record: PullRequestRecord): PullRequestLis
     needsAttention: record.attentionState?.needsAttention ?? false,
     attentionReason: record.attentionState?.attentionReason ?? null,
     urgencyScore: record.attentionState?.urgencyScore ?? 0,
+    hasConflicts: record.mergeable === null ? null : !record.mergeable,
   };
 }
 

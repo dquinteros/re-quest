@@ -94,6 +94,15 @@ export async function GET(
       return fail("Pull request not found", undefined, 404);
     }
 
+    // Refresh the mergeable status from GitHub in the background.
+    // We don't block the response on this; the next load will have fresh data.
+    const prContext = await getPullRequestGitHubContext(id, sessionUser.id);
+    if (prContext) {
+      refreshMergeableStatus(sessionUser.githubToken, prContext, id).catch(() => {
+        // Silently ignore - mergeable check is best-effort
+      });
+    }
+
     return ok(detail);
   } catch (error) {
     return fail(
@@ -101,6 +110,26 @@ export async function GET(
       error instanceof Error ? error.message : "Unknown error",
       500,
     );
+  }
+}
+
+async function refreshMergeableStatus(
+  githubToken: string,
+  prContext: { owner: string; repo: string; number: number },
+  id: string,
+) {
+  const octokit = createOAuthUserOctokit(githubToken);
+  const { data } = await octokit.rest.pulls.get({
+    owner: prContext.owner,
+    repo: prContext.repo,
+    pull_number: prContext.number,
+  });
+
+  if (typeof data.mergeable === "boolean") {
+    await prisma.pullRequest.update({
+      where: { id },
+      data: { mergeable: data.mergeable },
+    });
   }
 }
 

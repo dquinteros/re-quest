@@ -99,8 +99,8 @@ export const TRIAGE_CONTROL_IDS = {
   detailPanel: "triage-detail-panel",
   shortcutsHelpButton: "triage-shortcuts-help-button",
   shortcutsHelpDialog: "triage-shortcuts-help-dialog",
-  trackedRepoInput: "triage-tracked-repo-input",
-  trackedRepoAdd: "triage-tracked-repo-add",
+  repoSearchInput: "triage-repo-search-input",
+  repoOrgFilter: "triage-repo-org-filter",
   refreshFromGithub: "triage-refresh",
   signOut: "triage-sign-out",
   filterSearch: "triage-filter-search",
@@ -110,6 +110,7 @@ export const TRIAGE_CONTROL_IDS = {
   filterCiState: "triage-filter-ci-state",
   filterDraft: "triage-filter-draft",
   filterSort: "triage-filter-sort",
+  filterToggle: "triage-filter-toggle",
   clearFilters: "triage-filter-clear",
   commentBody: "triage-comment-body",
   commentSubmit: "triage-comment-submit",
@@ -142,8 +143,8 @@ export function inboxItemControlId(itemId: string): string {
   return toStableId("triage-inbox-item", itemId);
 }
 
-export function trackedRepoRemoveControlId(fullName: string): string {
-  return toStableId("triage-tracked-repo-remove", fullName);
+export function repoToggleControlId(fullName: string): string {
+  return toStableId("triage-repo-toggle", fullName);
 }
 
 export function presetControlId(key: InboxPresetKey): string {

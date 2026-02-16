@@ -1,82 +1,56 @@
 "use client";
 
-import styles from "../pr-attention-manager.module.css";
+import { HelpCircle, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { TRIAGE_CONTROL_IDS } from "./contracts";
+import { cn } from "@/lib/utils";
 
 interface HeaderBarProps {
-  viewerLabel: string | null;
   syncTimeLabel: string;
   syncing: boolean;
-  signingOut: boolean;
-  themeLabel: string;
   onRefresh: () => void;
-  onSignOut: () => void;
   onShowShortcuts: () => void;
-  onToggleTheme: () => void;
 }
 
 export function HeaderBar({
-  viewerLabel,
   syncTimeLabel,
   syncing,
-  signingOut,
-  themeLabel,
   onRefresh,
-  onSignOut,
   onShowShortcuts,
-  onToggleTheme,
 }: HeaderBarProps) {
   return (
-    <section className={styles.headerRow}>
+    <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-background">
       <div>
-        <h1 className={styles.title}>PR Attention Manager</h1>
-        <p className={styles.subtitle}>Focused triage for pull requests that still need your action.</p>
+        <h1 className="text-base font-semibold text-foreground">PR Triage</h1>
+        <p className="text-[11px] text-muted-foreground">{syncTimeLabel}</p>
       </div>
-      <div className={styles.syncCluster}>
-        {viewerLabel && <p className={styles.viewerText}>Signed in as {viewerLabel}</p>}
-        <p className={styles.syncTime}>{syncTimeLabel}</p>
-        <div className={styles.syncButtons}>
-          <button
-            type="button"
-            className={styles.clearButton}
-            onClick={onToggleTheme}
-          >
-            {themeLabel}
-          </button>
-          <button
-            id={TRIAGE_CONTROL_IDS.shortcutsHelpButton}
-            data-control-id={TRIAGE_CONTROL_IDS.shortcutsHelpButton}
-            data-shortcut-target={TRIAGE_CONTROL_IDS.shortcutsHelpButton}
-            type="button"
-            className={styles.clearButton}
-            onClick={onShowShortcuts}
-          >
-            Shortcuts (?)
-          </button>
-          <button
-            id={TRIAGE_CONTROL_IDS.refreshFromGithub}
-            data-control-id={TRIAGE_CONTROL_IDS.refreshFromGithub}
-            data-shortcut-target={TRIAGE_CONTROL_IDS.refreshFromGithub}
-            type="button"
-            className={styles.refreshButton}
-            onClick={onRefresh}
-            disabled={syncing}
-          >
-            {syncing ? "Refreshing..." : "Refresh From GitHub"}
-          </button>
-          <button
-            id={TRIAGE_CONTROL_IDS.signOut}
-            data-control-id={TRIAGE_CONTROL_IDS.signOut}
-            data-shortcut-target={TRIAGE_CONTROL_IDS.signOut}
-            type="button"
-            className={styles.signOutButton}
-            onClick={onSignOut}
-            disabled={signingOut}
-          >
-            {signingOut ? "Signing out..." : "Sign out"}
-          </button>
-        </div>
+      <div className="flex items-center gap-1">
+        <Button
+          id={TRIAGE_CONTROL_IDS.shortcutsHelpButton}
+          data-control-id={TRIAGE_CONTROL_IDS.shortcutsHelpButton}
+          data-shortcut-target={TRIAGE_CONTROL_IDS.shortcutsHelpButton}
+          variant="ghost"
+          size="sm"
+          className="h-8 gap-1.5 text-xs text-muted-foreground"
+          onClick={onShowShortcuts}
+        >
+          <HelpCircle className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Shortcuts</span>
+        </Button>
+        <Button
+          id={TRIAGE_CONTROL_IDS.refreshFromGithub}
+          data-control-id={TRIAGE_CONTROL_IDS.refreshFromGithub}
+          data-shortcut-target={TRIAGE_CONTROL_IDS.refreshFromGithub}
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1.5 text-xs"
+          onClick={onRefresh}
+          disabled={syncing}
+        >
+          <RefreshCw className={cn("h-3.5 w-3.5", syncing && "animate-spin")} />
+          {syncing ? "Syncing..." : "Refresh"}
+        </Button>
       </div>
-    </section>
+    </div>
   );
 }

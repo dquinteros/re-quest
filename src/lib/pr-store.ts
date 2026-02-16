@@ -156,7 +156,7 @@ export async function listInboxPullRequests(
   const offset = (query.page - 1) * query.pageSize;
   const paged = filtered.slice(offset, offset + query.pageSize);
 
-  const [needsReview, changesRequestedFollowUp, failingCi, latestSync] =
+  const [needsReview, changesRequestedFollowUp, failingCi, hasConflicts, latestSync] =
     await Promise.all([
       prisma.pullRequest.count({
         where: {
@@ -179,6 +179,13 @@ export async function listInboxPullRequests(
           ciState: "FAILURE",
         },
       }),
+      prisma.pullRequest.count({
+        where: {
+          ...ownershipFilter(scope),
+          attentionState: { needsAttention: true },
+          mergeable: false,
+        },
+      }),
       prisma.syncRun.findFirst({
         where: {
           viewerLogin: scope.userLogin,
@@ -194,6 +201,7 @@ export async function listInboxPullRequests(
       needsReview,
       changesRequestedFollowUp,
       failingCi,
+      hasConflicts,
     },
     syncedAt: latestSync?.finishedAt?.toISOString() ?? null,
   };
