@@ -18,6 +18,11 @@ export interface AttentionScoreBreakdown {
   finalScore: number;
 }
 
+export interface FlowViolationInfo {
+  expectedTargets: string[];
+  message: string;
+}
+
 export interface PullRequestListItem {
   id: string;
   repository: string;
@@ -39,6 +44,10 @@ export interface PullRequestListItem {
   attentionReason: string | null;
   urgencyScore: number;
   hasConflicts: boolean | null;
+  headRef: string | null;
+  baseRef: string | null;
+  flowPhase: string | null;
+  flowViolation: FlowViolationInfo | null;
 }
 
 export interface PullRequestDetail extends PullRequestListItem {
@@ -55,6 +64,7 @@ export interface InboxResponse {
     changesRequestedFollowUp: number;
     failingCi: number;
     hasConflicts: number;
+    flowViolations: number;
   };
   syncedAt: string | null;
 }

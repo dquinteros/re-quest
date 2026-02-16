@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { toPullRequestDetail, toPullRequestListItem } from "@/lib/pr-dto";
+import { parseFlowRules, type FlowRule } from "@/lib/git-flow";
 import type { ParsedInboxQuery } from "@/lib/query";
 import type { InboxResponse, PullRequestDetail } from "@/types/pr";
 
@@ -48,6 +49,26 @@ function ownershipFilter(scope: OwnedPullRequestScope): Prisma.PullRequestWhereI
       },
     ],
   };
+}
+
+async function loadFlowRulesMap(userId: string): Promise<Map<string, FlowRule[]>> {
+  const configs = await prisma.flowConfig.findMany({
+    where: { userId },
+  });
+
+  const map = new Map<string, FlowRule[]>();
+  for (const config of configs) {
+    map.set(config.repoFullName, parseFlowRules(config.rules));
+  }
+
+  return map;
+}
+
+function getFlowRulesForRepo(
+  repoFullName: string,
+  rulesMap: Map<string, FlowRule[]>,
+): FlowRule[] | undefined {
+  return rulesMap.get(repoFullName);
 }
 
 export async function listInboxPullRequests(
@@ -153,8 +174,21 @@ export async function listInboxPullRequests(
     );
   });
 
+  const flowRulesMap = await loadFlowRulesMap(scope.userId);
+
+  const items = filtered.map((item) =>
+    toPullRequestListItem(item, getFlowRulesForRepo(item.repository.fullName, flowRulesMap)),
+  );
+
+  const flowFiltered =
+    query.flowViolation === "true"
+      ? items.filter((item) => item.flowViolation !== null)
+      : query.flowViolation === "false"
+        ? items.filter((item) => item.flowViolation === null)
+        : items;
+
   const offset = (query.page - 1) * query.pageSize;
-  const paged = filtered.slice(offset, offset + query.pageSize);
+  const paged = flowFiltered.slice(offset, offset + query.pageSize);
 
   const [needsReview, changesRequestedFollowUp, failingCi, hasConflicts, latestSync] =
     await Promise.all([
@@ -194,14 +228,17 @@ export async function listInboxPullRequests(
       }),
     ]);
 
+  const flowViolations = items.filter((item) => item.flowViolation !== null).length;
+
   return {
-    items: paged.map(toPullRequestListItem),
-    total: filtered.length,
+    items: paged,
+    total: flowFiltered.length,
     badges: {
       needsReview,
       changesRequestedFollowUp,
       failingCi,
       hasConflicts,
+      flowViolations,
     },
     syncedAt: latestSync?.finishedAt?.toISOString() ?? null,
   };
@@ -223,7 +260,10 @@ export async function getPullRequestDetail(
     return null;
   }
 
-  return toPullRequestDetail(record);
+  const flowRulesMap = await loadFlowRulesMap(scope.userId);
+  const rules = getFlowRulesForRepo(record.repository.fullName, flowRulesMap);
+
+  return toPullRequestDetail(record, rules);
 }
 
 export async function getPullRequestContext(id: string, scope: OwnedPullRequestScope) {

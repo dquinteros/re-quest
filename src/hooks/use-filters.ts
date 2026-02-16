@@ -40,6 +40,7 @@ export function useFilters(): UseFiltersResult {
           reviewState: nextFilters.reviewState,
           ciState: nextFilters.ciState,
           draft: nextFilters.draft,
+          flowViolation: nextFilters.flowViolation,
         },
         sort: nextFilters.sort,
       }));

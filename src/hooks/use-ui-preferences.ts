@@ -10,6 +10,7 @@ export const PR_SORT_VALUES = [
 export type PrSort = (typeof PR_SORT_VALUES)[number];
 
 const DRAFT_FILTER_VALUES = ["all", "true", "false"] as const;
+const FLOW_VIOLATION_FILTER_VALUES = ["", "true", "false"] as const;
 const REVIEW_STATE_FILTER_VALUES = [
   "",
   "REVIEW_REQUESTED",
@@ -28,6 +29,7 @@ export interface UiPreferenceFilters {
   reviewState: (typeof REVIEW_STATE_FILTER_VALUES)[number];
   ciState: (typeof CI_STATE_FILTER_VALUES)[number];
   draft: (typeof DRAFT_FILTER_VALUES)[number];
+  flowViolation: (typeof FLOW_VIOLATION_FILTER_VALUES)[number];
 }
 
 export interface UiPreferences {
@@ -49,6 +51,7 @@ export const DEFAULT_UI_FILTER_PREFERENCES: UiPreferenceFilters = {
   reviewState: "",
   ciState: "",
   draft: "all",
+  flowViolation: "",
 };
 
 export const DEFAULT_UI_PREFERENCES: UiPreferences = {
@@ -160,6 +163,7 @@ export function normalizeUiPreferenceFilters(value: unknown): UiPreferenceFilter
       DEFAULT_UI_FILTER_PREFERENCES.ciState,
     ),
     draft: toEnumOrFallback(source.draft, DRAFT_FILTER_VALUES, DEFAULT_UI_FILTER_PREFERENCES.draft),
+    flowViolation: toEnumOrFallback(source.flowViolation, FLOW_VIOLATION_FILTER_VALUES, DEFAULT_UI_FILTER_PREFERENCES.flowViolation),
   };
 }
 

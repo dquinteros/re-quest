@@ -80,6 +80,17 @@ export function InboxPanel({
             </p>
             <p className="text-[10px] text-muted-foreground mt-0.5">Failing</p>
           </button>
+          <button
+            type="button"
+            className="flex-1 rounded-md border border-border bg-muted/30 px-2 py-1.5 text-center transition-colors hover:bg-muted/60"
+            onClick={() => onApplyPreset("flow_violations")}
+            aria-label="Filter: flow violations"
+          >
+            <p className="text-lg font-semibold tabular-nums leading-none">
+              {inbox?.badges.flowViolations ?? 0}
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Flow</p>
+          </button>
         </div>
 
         <InboxPresets activePreset={activePreset} onApplyPreset={onApplyPreset} />

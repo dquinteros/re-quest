@@ -3,7 +3,8 @@ import type {
   PullRequestAttention,
   Repository,
 } from "@prisma/client";
-import type { AttentionScoreBreakdown, PullRequestDetail, PullRequestListItem } from "@/types/pr";
+import type { AttentionScoreBreakdown, FlowViolationInfo, PullRequestDetail, PullRequestListItem } from "@/types/pr";
+import { validatePrFlow, getFlowPhase, DEFAULT_FLOW_RULES, type FlowRule } from "@/lib/git-flow";
 
 interface PullRequestRecord extends PrismaPullRequest {
   repository: Repository;
@@ -50,7 +51,37 @@ function scoreBreakdownFromJson(value: unknown): AttentionScoreBreakdown | null 
   };
 }
 
-export function toPullRequestListItem(record: PullRequestRecord): PullRequestListItem {
+function computeFlowFields(
+  headRef: string | null,
+  baseRef: string | null,
+  rules: FlowRule[],
+): { flowPhase: string | null; flowViolation: FlowViolationInfo | null } {
+  if (!headRef || !baseRef) {
+    return { flowPhase: null, flowViolation: null };
+  }
+
+  const violation = validatePrFlow(headRef, baseRef, rules);
+  const phase = getFlowPhase(headRef, baseRef);
+
+  return {
+    flowPhase: phase,
+    flowViolation: violation
+      ? { expectedTargets: violation.expectedTargets, message: violation.message }
+      : null,
+  };
+}
+
+export function toPullRequestListItem(
+  record: PullRequestRecord,
+  flowRules?: FlowRule[],
+): PullRequestListItem {
+  const rules = flowRules ?? DEFAULT_FLOW_RULES;
+  const { flowPhase, flowViolation } = computeFlowFields(
+    record.headRef,
+    record.baseRef,
+    rules,
+  );
+
   return {
     id: record.id,
     repository: record.repository.fullName,
@@ -72,11 +103,18 @@ export function toPullRequestListItem(record: PullRequestRecord): PullRequestLis
     attentionReason: record.attentionState?.attentionReason ?? null,
     urgencyScore: record.attentionState?.urgencyScore ?? 0,
     hasConflicts: record.mergeable === null ? null : !record.mergeable,
+    headRef: record.headRef,
+    baseRef: record.baseRef,
+    flowPhase,
+    flowViolation,
   };
 }
 
-export function toPullRequestDetail(record: PullRequestRecord): PullRequestDetail {
-  const base = toPullRequestListItem(record);
+export function toPullRequestDetail(
+  record: PullRequestRecord,
+  flowRules?: FlowRule[],
+): PullRequestDetail {
+  const base = toPullRequestListItem(record, flowRules);
 
   return {
     ...base,

@@ -24,6 +24,7 @@ function getInboxQuery(filters: Filters): string {
   if (filters.reviewState) params.set("reviewState", filters.reviewState);
   if (filters.ciState) params.set("ciState", filters.ciState);
   if (filters.draft !== "all") params.set("draft", filters.draft);
+  if (filters.flowViolation) params.set("flowViolation", filters.flowViolation);
 
   params.set("sort", filters.sort);
   params.set("page", "1");

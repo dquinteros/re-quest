@@ -15,6 +15,7 @@ describe("parseInboxQuery", () => {
       label: [],
       assignee: [],
       draft: "all",
+      flowViolation: "",
       updatedFrom: undefined,
       updatedTo: undefined,
       sort: "urgency",

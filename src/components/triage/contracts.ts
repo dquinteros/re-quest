@@ -18,6 +18,7 @@ export interface Filters {
     | "DRAFT";
   ciState: "" | "FAILURE" | "PENDING" | "SUCCESS" | "UNKNOWN";
   draft: "all" | "true" | "false";
+  flowViolation: "" | "true" | "false";
   sort: "urgency" | "updated_desc" | "updated_asc" | "created_desc" | "created_asc";
 }
 
@@ -28,6 +29,7 @@ export const DEFAULT_FILTERS: Filters = {
   reviewState: "",
   ciState: "",
   draft: "all",
+  flowViolation: "",
   sort: "urgency",
 };
 
@@ -55,7 +57,8 @@ export type InboxPresetKey =
   | "needs_review"
   | "changes_requested"
   | "failing_ci"
-  | "draft_only";
+  | "draft_only"
+  | "flow_violations";
 
 export interface InboxPreset {
   key: InboxPresetKey;
@@ -83,6 +86,11 @@ export const INBOX_PRESETS: InboxPreset[] = [
     key: "draft_only",
     label: "Draft only",
     filters: { draft: "true" },
+  },
+  {
+    key: "flow_violations",
+    label: "Flow violations",
+    filters: { flowViolation: "true" },
   },
 ];
 

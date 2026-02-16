@@ -603,6 +603,9 @@ async function syncRepository(
         ref: pull.head.sha,
       });
 
+      const headRef = pull.head.ref ?? null;
+      const baseRef = pull.base.ref ?? null;
+
       const pullRequest = await prisma.pullRequest.upsert({
         where: {
           repositoryId_number: {
@@ -633,6 +636,8 @@ async function syncRepository(
           milestone: pull.milestone?.title ?? null,
           projects: [],
           raw: asInputJson(pull),
+          headRef,
+          baseRef,
         },
         update: {
           githubPullRequestId: BigInt(pull.id),
@@ -653,6 +658,8 @@ async function syncRepository(
           requestedReviewers,
           milestone: pull.milestone?.title ?? null,
           raw: asInputJson(pull),
+          headRef,
+          baseRef,
         },
       });
 

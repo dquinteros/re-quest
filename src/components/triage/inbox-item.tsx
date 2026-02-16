@@ -1,5 +1,6 @@
 "use client";
 
+import { AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PullRequestListItem } from "@/types/pr";
 import { inboxItemControlId } from "./contracts";
@@ -11,6 +12,19 @@ function urgencyDot(score: number): string {
   return "bg-emerald-500";
 }
 
+function flowPhaseBadge(phase: string | null): { label: string; className: string } | null {
+  switch (phase) {
+    case "Development":
+      return { label: "Dev", className: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/25" };
+    case "QA Fix":
+      return { label: "QA", className: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/25" };
+    case "Promotion":
+      return { label: "Promo", className: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/25" };
+    default:
+      return null;
+  }
+}
+
 interface InboxItemProps {
   item: PullRequestListItem;
   isActive: boolean;
@@ -19,6 +33,7 @@ interface InboxItemProps {
 
 export function InboxItem({ item, isActive, onSelect }: InboxItemProps) {
   const controlId = inboxItemControlId(item.id);
+  const phase = flowPhaseBadge(item.flowPhase);
 
   return (
     <button
@@ -40,6 +55,24 @@ export function InboxItem({ item, isActive, onSelect }: InboxItemProps) {
           {item.repository}
         </span>
         <div className="flex items-center gap-1.5 shrink-0">
+          {item.flowViolation && (
+            <span
+              className="text-red-500"
+              title={item.flowViolation.message}
+            >
+              <AlertTriangle className="h-3 w-3" />
+            </span>
+          )}
+          {phase && (
+            <span
+              className={cn(
+                "inline-flex items-center rounded px-1 py-0.5 text-[9px] font-medium border leading-none",
+                phase.className,
+              )}
+            >
+              {phase.label}
+            </span>
+          )}
           <span className={cn("h-2 w-2 rounded-full shrink-0", urgencyDot(item.urgencyScore))} />
           <span className="text-[10px] font-medium text-muted-foreground tabular-nums">
             {Math.round(item.urgencyScore)}
@@ -56,6 +89,14 @@ export function InboxItem({ item, isActive, onSelect }: InboxItemProps) {
         <span>{item.reviewState.replace(/_/g, " ").toLowerCase()}</span>
         <span className="text-muted-foreground/50">·</span>
         <span>CI {item.ciState.toLowerCase()}</span>
+        {item.headRef && item.baseRef && (
+          <>
+            <span className="text-muted-foreground/50">·</span>
+            <span className="truncate max-w-[120px]" title={`${item.headRef} → ${item.baseRef}`}>
+              {item.headRef.split("/").slice(1).join("/") || item.headRef} → {item.baseRef}
+            </span>
+          </>
+        )}
         <span className="text-muted-foreground/50">·</span>
         <span>{new Date(item.updatedAt).toLocaleDateString()}</span>
       </div>

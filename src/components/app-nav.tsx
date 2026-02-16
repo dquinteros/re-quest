@@ -59,6 +59,17 @@ export function AppNav({
           >
             Tracked Repos
           </Link>
+          <Link
+            href="/flow-config"
+            className={cn(
+              "px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
+              pathname === "/flow-config"
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+            )}
+          >
+            Flow Rules
+          </Link>
         </div>
       )}
 

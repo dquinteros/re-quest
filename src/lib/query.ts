@@ -36,6 +36,7 @@ const schema = z.object({
   label: z.array(z.string()).default([]),
   assignee: z.array(z.string()).default([]),
   draft: z.enum(["true", "false", "all"]).default("all"),
+  flowViolation: z.enum(["true", "false", ""]).default(""),
   updatedFrom: z.string().optional(),
   updatedTo: z.string().optional(),
   sort: z
@@ -62,6 +63,7 @@ export interface ParsedInboxQuery {
   label: string[];
   assignee: string[];
   draft: "true" | "false" | "all";
+  flowViolation: "true" | "false" | "";
   updatedFrom?: string;
   updatedTo?: string;
   sort: "urgency" | "updated_desc" | "updated_asc" | "created_desc" | "created_asc";
@@ -80,6 +82,7 @@ export function parseInboxQuery(searchParams: URLSearchParams): ParsedInboxQuery
     label: listParam(searchParams.get("label")),
     assignee: listParam(searchParams.get("assignee")),
     draft: searchParams.get("draft") ?? "all",
+    flowViolation: searchParams.get("flowViolation") ?? "",
     updatedFrom: searchParams.get("updatedFrom") ?? undefined,
     updatedTo: searchParams.get("updatedTo") ?? undefined,
     sort: searchParams.get("sort") ?? "urgency",

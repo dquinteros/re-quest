@@ -80,6 +80,7 @@ model User {
   syncRuns            SyncRun[]
   trackedRepositories TrackedRepository[]
   oauthAccounts       OAuthAccount[]
+  flowConfigs         FlowConfig[]
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
 }
@@ -147,6 +148,8 @@ model PullRequest {
   projects            Json?
   raw                 Json?
   mergeable           Boolean?
+  headRef             String?
+  baseRef             String?
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
   attentionState      PullRequestAttention?
@@ -243,5 +246,18 @@ model TrackedRepository {
 
   @@unique([userId, fullName])
   @@index([repositoryId])
+  @@index([userId])
+}
+
+model FlowConfig {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repoFullName String
+  rules        Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, repoFullName])
   @@index([userId])
 }
