@@ -49,6 +49,7 @@ describe("calculateUrgencyScore", () => {
       sizeBoost: 0,
       activityBoost: 0,
       commitBoost: 0,
+      myLastActivityPenalty: 0,
       finalScore: 76,
     });
   });
@@ -197,6 +198,50 @@ describe("calculateUrgencyScore", () => {
     expect(score.activityBoost).toBe(8);
     expect(score.commitBoost).toBe(5);
     expect(score.finalScore).toBe(62);
+  });
+
+  it("applies myLastActivityPenalty when last activity is by viewer", () => {
+    const now = new Date("2026-02-14T12:00:00.000Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+
+    const withPenalty = calculateUrgencyScore(
+      baseInput({
+        lastActivityByViewer: true,
+        reviewRequested: true,
+        updatedAt: now,
+      }),
+    );
+
+    expect(withPenalty.myLastActivityPenalty).toBe(10);
+    expect(withPenalty.finalScore).toBe(15);
+
+    const withoutPenalty = calculateUrgencyScore(
+      baseInput({
+        lastActivityByViewer: false,
+        reviewRequested: true,
+        updatedAt: now,
+      }),
+    );
+
+    expect(withoutPenalty.myLastActivityPenalty).toBe(0);
+    expect(withoutPenalty.finalScore).toBe(25);
+  });
+
+  it("clamps score to zero when myLastActivityPenalty exceeds boosts", () => {
+    const now = new Date("2026-02-14T12:00:00.000Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+
+    const score = calculateUrgencyScore(
+      baseInput({
+        lastActivityByViewer: true,
+        updatedAt: now,
+      }),
+    );
+
+    expect(score.myLastActivityPenalty).toBe(10);
+    expect(score.finalScore).toBe(0);
   });
 });
 

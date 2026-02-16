@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { toPullRequestDetail, toPullRequestListItem } from "@/lib/pr-dto";
-import { parseFlowRules, type FlowRule } from "@/lib/git-flow";
+import { parseFlowRules, validatePrFlow, DEFAULT_FLOW_RULES, type FlowRule } from "@/lib/git-flow";
 import type { ParsedInboxQuery } from "@/lib/query";
 import type { InboxResponse, PullRequestDetail } from "@/types/pr";
 
@@ -190,7 +190,7 @@ export async function listInboxPullRequests(
   const offset = (query.page - 1) * query.pageSize;
   const paged = flowFiltered.slice(offset, offset + query.pageSize);
 
-  const [needsReview, changesRequestedFollowUp, failingCi, hasConflicts, latestSync] =
+  const [needsReview, changesRequestedFollowUp, failingCi, hasConflicts, latestSync, allBranchRefs] =
     await Promise.all([
       prisma.pullRequest.count({
         where: {
@@ -226,9 +226,25 @@ export async function listInboxPullRequests(
         },
         orderBy: { startedAt: "desc" },
       }),
+      prisma.pullRequest.findMany({
+        where: {
+          ...ownershipFilter(scope),
+          attentionState: { needsAttention: true },
+          headRef: { not: null },
+          baseRef: { not: null },
+        },
+        select: {
+          headRef: true,
+          baseRef: true,
+          repository: { select: { fullName: true } },
+        },
+      }),
     ]);
 
-  const flowViolations = items.filter((item) => item.flowViolation !== null).length;
+  const flowViolations = allBranchRefs.filter((pr) => {
+    const rules = getFlowRulesForRepo(pr.repository.fullName, flowRulesMap) ?? DEFAULT_FLOW_RULES;
+    return validatePrFlow(pr.headRef!, pr.baseRef!, rules) !== null;
+  }).length;
 
   return {
     items: paged,
