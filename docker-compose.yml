@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: re_quest
+      POSTGRES_PASSWORD: re_quest
+      POSTGRES_DB: re_quest
+    ports:
+      - "5432:5432"
+    volumes:
+      - re_quest_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U re_quest -d re_quest"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+volumes:
+  re_quest_postgres_data:

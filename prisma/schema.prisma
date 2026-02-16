@@ -1,0 +1,245 @@
+generator client {
+  provider = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum InstallationAccountType {
+  USER
+  ORGANIZATION
+}
+
+enum PullRequestStateEnum {
+  OPEN
+  CLOSED
+  MERGED
+}
+
+enum CiState {
+  SUCCESS
+  FAILURE
+  PENDING
+  UNKNOWN
+}
+
+enum ReviewState {
+  REVIEW_REQUESTED
+  APPROVED
+  CHANGES_REQUESTED
+  COMMENTED
+  UNREVIEWED
+  DRAFT
+}
+
+enum SyncStatus {
+  SUCCESS
+  PARTIAL
+  FAILED
+  RUNNING
+}
+
+enum ActionResultStatus {
+  SUCCESS
+  FAILED
+}
+
+enum ActionType {
+  COMMENT
+  REVIEW_QUICK
+  REVIEW_PENDING_CREATE
+  REVIEW_PENDING_SUBMIT
+  REVIEW_PENDING_DELETE
+  UPDATE_PR
+  UPDATE_LABELS
+  UPDATE_ASSIGNEES
+  UPDATE_REVIEWERS
+  SYNC_MANUAL
+  SYNC_POLL
+}
+
+enum SyncTrigger {
+  MANUAL
+  POLL
+}
+
+model User {
+  id                  String               @id @default(cuid())
+  githubId            BigInt               @unique
+  githubNodeId        String?              @unique
+  login               String               @unique
+  name                String?
+  email               String?
+  image               String?
+  avatarUrl           String?
+  installations       GitHubInstallation[]
+  repositories        Repository[]
+  syncRuns            SyncRun[]
+  trackedRepositories TrackedRepository[]
+  oauthAccounts       OAuthAccount[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+}
+
+model GitHubInstallation {
+  id                   String                  @id @default(cuid())
+  githubInstallationId BigInt                  @unique
+  accountLogin         String
+  accountType          InstallationAccountType @default(ORGANIZATION)
+  userId               String?
+  user                 User?                   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  repositories         Repository[]
+  installedAt          DateTime                @default(now())
+  lastSyncedAt         DateTime?
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+
+  @@index([accountLogin])
+}
+
+model Repository {
+  id                  String              @id @default(cuid())
+  installationId      String?
+  installation        GitHubInstallation? @relation(fields: [installationId], references: [id], onDelete: SetNull)
+  userId              String?
+  user                User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  githubRepoId        BigInt              @unique
+  owner               String
+  name                String
+  fullName            String              @unique
+  defaultBranch       String?
+  isTracked           Boolean             @default(true)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  pullRequests        PullRequest[]
+  trackedRepositories TrackedRepository[]
+
+  @@index([installationId])
+  @@index([userId])
+}
+
+model PullRequest {
+  id                  String                @id @default(cuid())
+  repositoryId        String
+  repository          Repository            @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  githubPullRequestId BigInt?
+  number              Int
+  nodeId              String?               @unique
+  title               String
+  body                String?
+  state               PullRequestStateEnum
+  draft               Boolean               @default(false)
+  url                 String
+  authorLogin         String
+  authorAvatarUrl     String?
+  ciState             CiState               @default(UNKNOWN)
+  reviewState         ReviewState           @default(UNREVIEWED)
+  githubCreatedAt     DateTime
+  githubUpdatedAt     DateTime
+  lastActivityAt      DateTime
+  labels              Json
+  assignees           Json
+  requestedReviewers  Json
+  milestone           String?
+  projects            Json?
+  raw                 Json?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  attentionState      PullRequestAttention?
+
+  @@unique([repositoryId, number])
+  @@index([state])
+  @@index([reviewState])
+  @@index([ciState])
+  @@index([lastActivityAt])
+}
+
+model PullRequestAttention {
+  id              String      @id @default(cuid())
+  pullRequestId   String      @unique
+  pullRequest     PullRequest @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
+  needsAttention  Boolean
+  attentionReason String?
+  urgencyScore    Float       @default(0)
+  scoreBreakdown  Json?
+  lastSyncedAt    DateTime
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([needsAttention, urgencyScore])
+}
+
+model ActionLog {
+  id           String             @id @default(cuid())
+  actionType   ActionType
+  resultStatus ActionResultStatus
+  repository   String
+  pullNumber   Int?
+  actorLogin   String?
+  payload      Json?
+  errorMessage String?
+  createdAt    DateTime           @default(now())
+
+  @@index([createdAt])
+  @@index([repository, pullNumber])
+}
+
+model SyncRun {
+  id            String      @id @default(cuid())
+  userId        String?
+  user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  trigger       SyncTrigger @default(POLL)
+  status        SyncStatus
+  startedAt     DateTime    @default(now())
+  finishedAt    DateTime?
+  viewerLogin   String?
+  trackedRepos  Json?
+  pulledCount   Int         @default(0)
+  upsertedCount Int         @default(0)
+  errorCount    Int         @default(0)
+  errorSummary  String?
+  details       Json?
+  updatedAt     DateTime    @updatedAt
+
+  @@index([startedAt])
+  @@index([userId, startedAt])
+}
+
+model OAuthAccount {
+  id                       String   @id @default(cuid())
+  userId                   String
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider                 String
+  providerAccountId        String
+  accessTokenEncrypted     String?
+  refreshTokenEncrypted    String?
+  accessTokenExpiresAt     DateTime?
+  refreshTokenExpiresAt    DateTime?
+  scope                    String?
+  tokenType                String?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  @@unique([provider, providerAccountId])
+  @@unique([userId, provider])
+  @@index([userId])
+}
+
+model TrackedRepository {
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repositoryId String?
+  repository   Repository? @relation(fields: [repositoryId], references: [id], onDelete: SetNull)
+  owner        String
+  name         String
+  fullName     String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([userId, fullName])
+  @@index([repositoryId])
+  @@index([userId])
+}

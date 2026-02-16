@@ -1,0 +1,749 @@
+.shell {
+  width: min(1280px, 100% - 2rem);
+  margin: 1.5rem auto 2rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.authCard {
+  background: linear-gradient(135deg, #072f2f, #143f3f);
+  border: 1px solid #225656;
+  color: #f5fffa;
+  border-radius: 16px;
+  padding: 1.3rem;
+  display: grid;
+  gap: 0.8rem;
+  max-width: 640px;
+}
+
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  background: linear-gradient(135deg, #072f2f, #143f3f);
+  border: 1px solid #225656;
+  color: #f5fffa;
+  padding: 1rem 1.2rem;
+  border-radius: 16px;
+}
+
+.title {
+  font-size: clamp(1.3rem, 3vw, 2rem);
+  letter-spacing: 0.02em;
+}
+
+.subtitle {
+  margin-top: 0.35rem;
+  font-size: 0.95rem;
+  color: #b8f3de;
+}
+
+.syncCluster {
+  text-align: right;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.viewerText {
+  font-size: 0.83rem;
+  color: #dbfff1;
+}
+
+.syncButtons {
+  display: flex;
+  gap: 0.45rem;
+  justify-content: flex-end;
+}
+
+.syncTime {
+  font-size: 0.82rem;
+  color: #c6e8da;
+}
+
+.refreshButton,
+.clearButton,
+.signOutButton,
+.actionsGrid button,
+.linkButton,
+.repoForm button,
+.repoRemoveButton,
+.authCta {
+  appearance: none;
+  border: none;
+  border-radius: 10px;
+  background: #ddfff0;
+  color: #102626;
+  font: inherit;
+  padding: 0.55rem 0.9rem;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.refreshButton:hover,
+.clearButton:hover,
+.signOutButton:hover,
+.actionsGrid button:hover,
+.linkButton:hover,
+.repoForm button:hover,
+.repoRemoveButton:hover,
+.authCta:hover {
+  transform: translateY(-1px);
+  filter: brightness(0.95);
+}
+
+.refreshButton:disabled,
+.signOutButton:disabled,
+.actionsGrid button:disabled,
+.repoForm button:disabled,
+.repoRemoveButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+}
+
+.authCta {
+  text-decoration: none;
+  display: inline-flex;
+  width: fit-content;
+  background: #ddfff0;
+}
+
+.signOutButton {
+  background: #f0f6f3;
+  color: #193b30;
+}
+
+.badgeGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.repoManagerSection {
+  border: 1px solid #dce9de;
+  border-radius: 14px;
+  background: #f4f9f5;
+  padding: 0.85rem;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.repoHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.repoHeader h2 {
+  font-size: 0.95rem;
+  color: #183429;
+}
+
+.repoHeader span {
+  font-size: 0.8rem;
+  color: #507064;
+}
+
+.repoForm {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.repoRemoveButton {
+  background: #f7eeec;
+  color: #6e2318;
+  padding: 0.4rem 0.7rem;
+}
+
+.repoList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.repoListItem {
+  border: 1px solid #dbe7e0;
+  border-radius: 10px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.86rem;
+  color: #264339;
+}
+
+.badgeCard {
+  border: 1px solid #ead8b4;
+  background: #fff9ef;
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+}
+
+.badgeCard h2 {
+  font-size: 0.86rem;
+  text-transform: uppercase;
+  color: #7a5231;
+  letter-spacing: 0.05em;
+}
+
+.badgeCard p {
+  font-size: 1.5rem;
+  color: #25140a;
+  font-weight: 600;
+  margin-top: 0.25rem;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  background: #f4f9f5;
+  border: 1px solid #dce9de;
+  border-radius: 14px;
+  padding: 0.85rem;
+}
+
+.filters label {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: #334f46;
+}
+
+.filters input,
+.filters select,
+.repoForm input,
+.repoForm select,
+.actionsGrid input,
+.actionsGrid textarea,
+.actionsGrid select {
+  width: 100%;
+  padding: 0.48rem 0.62rem;
+  border: 1px solid #9ac0aa;
+  border-radius: 10px;
+  font: inherit;
+  color: #1a2a25;
+  background: #ffffff;
+}
+
+.filters input:focus,
+.filters select:focus,
+.repoForm input:focus,
+.repoForm select:focus,
+.actionsGrid input:focus,
+.actionsGrid textarea:focus,
+.actionsGrid select:focus {
+  outline: 2px solid #389f77;
+  outline-offset: 1px;
+}
+
+.clearButton {
+  align-self: end;
+  background: #e6ece9;
+}
+
+.messageRow {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.errorText {
+  border-radius: 10px;
+  border: 1px solid #e2b5ac;
+  background: #fff2f0;
+  color: #8f1f10;
+  padding: 0.55rem 0.75rem;
+}
+
+.infoText {
+  border-radius: 10px;
+  border: 1px solid #95c6ad;
+  background: #ecfaf2;
+  color: #184e34;
+  padding: 0.55rem 0.75rem;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(260px, 34%) minmax(0, 1fr);
+  gap: 0.8rem;
+  min-height: 62vh;
+}
+
+.listPanel,
+.detailPanel {
+  background: #ffffff;
+  border: 1px solid #d9e7df;
+  border-radius: 14px;
+  padding: 0.8rem;
+  min-height: 0;
+}
+
+.listPanel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid #edf3ef;
+  margin-bottom: 0.7rem;
+}
+
+.panelHeader h2 {
+  font-size: 1rem;
+  color: #183429;
+}
+
+.panelHeader span {
+  font-size: 0.8rem;
+  color: #507064;
+}
+
+.listBody {
+  overflow: auto;
+  display: grid;
+  gap: 0.55rem;
+  padding-right: 0.2rem;
+}
+
+.listItem {
+  text-align: left;
+  width: 100%;
+  border: 1px solid #e4ece7;
+  background: #fafcfb;
+  border-radius: 12px;
+  padding: 0.62rem 0.68rem;
+  cursor: pointer;
+}
+
+.listItem:hover {
+  border-color: #8dc4ad;
+}
+
+.listItemActive {
+  border-color: #368f69;
+  background: #eef9f2;
+}
+
+.listItemTitleRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.4rem;
+  color: #3c6255;
+  font-size: 0.78rem;
+}
+
+.listItemTitle {
+  margin-top: 0.28rem;
+  font-size: 0.9rem;
+  color: #1f3b31;
+}
+
+.listItemMeta {
+  margin-top: 0.3rem;
+  font-size: 0.76rem;
+  color: #5e7a6f;
+}
+
+.listItemReason {
+  margin-top: 0.3rem;
+  font-size: 0.78rem;
+  color: #844200;
+}
+
+.urgencyPill {
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.urgencyCritical {
+  background: #ffd1c7;
+  color: #8d1900;
+}
+
+.urgencyHigh {
+  background: #ffe6bc;
+  color: #704000;
+}
+
+.urgencyMedium {
+  background: #edf5cc;
+  color: #365100;
+}
+
+.urgencyLow {
+  background: #d9efef;
+  color: #055f5f;
+}
+
+.subtleText {
+  font-size: 0.88rem;
+  color: #5b786d;
+}
+
+.detailPanel {
+  overflow: auto;
+}
+
+.linkButton {
+  text-decoration: none;
+  background: #0e3f32;
+  color: #effff8;
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem 0.85rem;
+  margin-bottom: 0.85rem;
+}
+
+.detailGrid p {
+  font-size: 0.86rem;
+  color: #264339;
+}
+
+.tagSection {
+  margin-bottom: 0.9rem;
+}
+
+.tagSection h3,
+.bodySection h3,
+.scoreSection h3,
+.actionsSection h3 {
+  margin-bottom: 0.35rem;
+  font-size: 0.9rem;
+  color: #1f3e35;
+}
+
+.tagRow {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.tagPill {
+  border-radius: 999px;
+  border: 1px solid #bfd5c9;
+  background: #f4faf6;
+  color: #2d4f42;
+  font-size: 0.77rem;
+  padding: 0.2rem 0.55rem;
+}
+
+.bodySection pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  border: 1px solid #e4ece7;
+  border-radius: 12px;
+  background: #f9fbfa;
+  padding: 0.65rem;
+  font-size: 0.84rem;
+  line-height: 1.35;
+  color: #2a4139;
+}
+
+.scoreSection {
+  margin-bottom: 0.95rem;
+}
+
+.scoreGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.42rem;
+}
+
+.scoreGrid p {
+  font-size: 0.8rem;
+  border: 1px solid #e6eee9;
+  border-radius: 10px;
+  background: #fbfdfc;
+  padding: 0.38rem 0.45rem;
+  color: #2a4438;
+}
+
+.actionsSection {
+  margin-top: 0.5rem;
+}
+
+.actionsGrid {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.actionsGrid form,
+.actionsGrid > div {
+  border: 1px solid #e2ebe5;
+  border-radius: 12px;
+  background: #f7fbf8;
+  padding: 0.6rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.actionsGrid h4 {
+  font-size: 0.83rem;
+  color: #264036;
+}
+
+.inlineActions {
+  display: grid;
+  gap: 0.42rem;
+  grid-template-columns: 1fr auto auto;
+}
+
+:global(html.dark) .authCard,
+:global(html.dark) .headerRow {
+  background: linear-gradient(135deg, #12151c, #171c26);
+  border-color: #2a3140;
+  color: #ebf0fb;
+}
+
+:global(html.dark) .subtitle {
+  color: #b5bfce;
+}
+
+:global(html.dark) .viewerText,
+:global(html.dark) .syncTime {
+  color: #c7d1e0;
+}
+
+:global(html.dark) .refreshButton,
+:global(html.dark) .clearButton,
+:global(html.dark) .signOutButton,
+:global(html.dark) .actionsGrid button,
+:global(html.dark) .linkButton,
+:global(html.dark) .repoForm button,
+:global(html.dark) .repoRemoveButton,
+:global(html.dark) .authCta {
+  background: #273142;
+  color: #eef3ff;
+}
+
+:global(html.dark) .signOutButton {
+  background: #2e3340;
+}
+
+:global(html.dark) .repoManagerSection,
+:global(html.dark) .filters {
+  border-color: #2b3445;
+  background: #141923;
+}
+
+:global(html.dark) .repoHeader h2,
+:global(html.dark) .panelHeader h2 {
+  color: #e4eaf6;
+}
+
+:global(html.dark) .repoHeader span,
+:global(html.dark) .panelHeader span,
+:global(html.dark) .filters label,
+:global(html.dark) .subtleText {
+  color: #98a5bb;
+}
+
+:global(html.dark) .repoListItem,
+:global(html.dark) .listPanel,
+:global(html.dark) .detailPanel {
+  border-color: #2a3344;
+  background: #111722;
+  color: #dbe3f3;
+}
+
+:global(html.dark) .listItem {
+  border-color: #2d384d;
+  background: #171e2b;
+}
+
+:global(html.dark) .listItem:hover {
+  border-color: #5976a4;
+}
+
+:global(html.dark) .listItemActive {
+  border-color: #8cabd9;
+  background: #20293b;
+}
+
+:global(html.dark) .listItemTitleRow,
+:global(html.dark) .listItemMeta {
+  color: #a2afc5;
+}
+
+:global(html.dark) .listItemTitle,
+:global(html.dark) .detailGrid p,
+:global(html.dark) .tagSection h3,
+:global(html.dark) .bodySection h3,
+:global(html.dark) .scoreSection h3,
+:global(html.dark) .actionsSection h3,
+:global(html.dark) .actionsGrid h4 {
+  color: #dbe3f3;
+}
+
+:global(html.dark) .listItemReason {
+  color: #d9b37a;
+}
+
+:global(html.dark) .badgeCard {
+  border-color: #54482f;
+  background: #282216;
+}
+
+:global(html.dark) .badgeCard h2 {
+  color: #c7af84;
+}
+
+:global(html.dark) .badgeCard p {
+  color: #f5e7cc;
+}
+
+:global(html.dark) .filters input,
+:global(html.dark) .filters select,
+:global(html.dark) .repoForm input,
+:global(html.dark) .repoForm select,
+:global(html.dark) .actionsGrid input,
+:global(html.dark) .actionsGrid textarea,
+:global(html.dark) .actionsGrid select {
+  border-color: #3a465f;
+  background: #0f1520;
+  color: #e4ebf8;
+}
+
+:global(html.dark) .filters input:focus,
+:global(html.dark) .filters select:focus,
+:global(html.dark) .repoForm input:focus,
+:global(html.dark) .repoForm select:focus,
+:global(html.dark) .actionsGrid input:focus,
+:global(html.dark) .actionsGrid textarea:focus,
+:global(html.dark) .actionsGrid select:focus {
+  outline-color: #8db0e3;
+}
+
+:global(html.dark) .errorText {
+  border-color: #865047;
+  background: #2f1815;
+  color: #ffb9ae;
+}
+
+:global(html.dark) .infoText {
+  border-color: #435577;
+  background: #151d2f;
+  color: #bfd6ff;
+}
+
+:global(html.dark) .panelHeader {
+  border-bottom-color: #2c3649;
+}
+
+:global(html.dark) .linkButton {
+  background: #355077;
+}
+
+:global(html.dark) .tagPill {
+  border-color: #3a465f;
+  background: #1a2232;
+  color: #d7e4ff;
+}
+
+:global(html.dark) .bodySection pre {
+  border-color: #2e3a4f;
+  background: #121a28;
+  color: #d9e4f7;
+}
+
+:global(html.dark) .scoreGrid p {
+  border-color: #2e3a4f;
+  background: #121a28;
+  color: #d4e0f4;
+}
+
+:global(html.dark) .actionsGrid form,
+:global(html.dark) .actionsGrid > div {
+  border-color: #2f3a51;
+  background: #151d2a;
+}
+
+:global(html.dark) .urgencyCritical {
+  background: #5e2a21;
+  color: #ffd1c7;
+}
+
+:global(html.dark) .urgencyHigh {
+  background: #5e4725;
+  color: #ffe5b2;
+}
+
+:global(html.dark) .urgencyMedium {
+  background: #3f4e24;
+  color: #e6f0ba;
+}
+
+:global(html.dark) .urgencyLow {
+  background: #213448;
+  color: #cde9ff;
+}
+
+@media (max-width: 1080px) {
+  .filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .workspace {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .detailGrid,
+  .scoreGrid,
+  .actionsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .shell {
+    width: min(1280px, 100% - 1rem);
+  }
+
+  .headerRow {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .syncCluster {
+    text-align: left;
+  }
+
+  .syncButtons {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .badgeGrid,
+  .filters {
+    grid-template-columns: 1fr;
+  }
+
+  .repoForm {
+    grid-template-columns: 1fr;
+  }
+
+  .inlineActions {
+    grid-template-columns: 1fr;
+  }
+}

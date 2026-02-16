@@ -1,0 +1,158 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --background: 45 38% 98%;
+  --foreground: 165 25% 14%;
+  --card: 0 0% 100%;
+  --card-foreground: 165 25% 14%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 165 25% 14%;
+  --primary: 164 49% 23%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 160 19% 93%;
+  --secondary-foreground: 165 25% 18%;
+  --muted: 150 18% 94%;
+  --muted-foreground: 162 11% 38%;
+  --accent: 155 24% 90%;
+  --accent-foreground: 165 25% 18%;
+  --destructive: 8 71% 49%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 156 20% 84%;
+  --input: 156 20% 84%;
+  --ring: 164 41% 38%;
+  --radius: 0.75rem;
+
+  --bg-paper: #fffdf8;
+  --bg-ink: #11251f;
+  --bg-surface: #ffffff;
+  --line-soft: #dde9e1;
+}
+
+.dark {
+  color-scheme: dark;
+  --background: 224 23% 8%;
+  --foreground: 220 24% 92%;
+  --card: 223 22% 12%;
+  --card-foreground: 220 24% 92%;
+  --popover: 223 22% 12%;
+  --popover-foreground: 220 24% 92%;
+  --primary: 217 70% 64%;
+  --primary-foreground: 224 32% 12%;
+  --secondary: 223 16% 20%;
+  --secondary-foreground: 220 20% 90%;
+  --muted: 223 15% 18%;
+  --muted-foreground: 220 12% 70%;
+  --accent: 223 18% 24%;
+  --accent-foreground: 220 20% 92%;
+  --destructive: 8 79% 58%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 223 16% 30%;
+  --input: 223 16% 30%;
+  --ring: 217 70% 64%;
+
+  --bg-paper: #0f1219;
+  --bg-ink: #e8ecf5;
+  --bg-surface: #141923;
+  --line-soft: #2e3748;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  max-width: 100vw;
+  min-height: 100%;
+  overflow-x: clip;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    background:
+      radial-gradient(
+        circle at 12% 8%,
+        hsl(43 100% 86% / 0.45) 0%,
+        transparent 30%
+      ),
+      radial-gradient(
+        circle at 90% 7%,
+        hsl(161 56% 84% / 0.4) 0%,
+        transparent 36%
+      ),
+      hsl(var(--background));
+    font-family: var(--font-space-grotesk), "Trebuchet MS", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html.dark body {
+    background:
+      radial-gradient(
+        circle at 14% 8%,
+        hsl(226 55% 28% / 0.32) 0%,
+        transparent 34%
+      ),
+      radial-gradient(
+        circle at 88% 10%,
+        hsl(206 45% 26% / 0.24) 0%,
+        transparent 38%
+      ),
+      hsl(var(--background));
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font-family: inherit;
+  }
+
+  strong,
+  code,
+  pre {
+    font-family: var(--font-jetbrains-mono), "Courier New", monospace;
+  }
+}
+
+::selection {
+  background: hsl(157 46% 73%);
+  color: hsl(160 50% 14%);
+}
+
+@media (max-width: 680px) {
+  body {
+    background:
+      radial-gradient(
+        circle at 15% 4%,
+        hsl(47 100% 86% / 0.4) 0%,
+        transparent 36%
+      ),
+      hsl(var(--background));
+  }
+
+  html.dark body {
+    background:
+      radial-gradient(
+        circle at 15% 6%,
+        hsl(225 52% 26% / 0.26) 0%,
+        transparent 38%
+      ),
+      hsl(var(--background));
+  }
+}
