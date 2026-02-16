@@ -96,6 +96,7 @@ export function PrAttentionManager({
   const [syncing, setSyncing] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
+  const [aiReviewRunning, setAiReviewRunning] = useState(false);
 
   const selectedListItem: PullRequestListItem | null = useMemo(() => {
     if (!selectedId || !inbox) return null;
@@ -114,6 +115,21 @@ export function PrAttentionManager({
       addToast(error instanceof Error ? error.message : "Unable to start sync", "error");
     } finally {
       setSyncing(false);
+    }
+  }
+
+  async function handleRunAiReview() {
+    if (!selectedId) return;
+    setAiReviewRunning(true);
+    try {
+      await requestJson(`/api/prs/${encodeURIComponent(selectedId)}/ai-review`, {
+        method: "POST",
+      });
+      addToast("AI review started. Results will be posted to the PR on GitHub.", "info");
+    } catch (error) {
+      addToast(error instanceof Error ? error.message : "Failed to start AI review", "error");
+    } finally {
+      setAiReviewRunning(false);
     }
   }
 
@@ -234,6 +250,8 @@ export function PrAttentionManager({
             onSubmitPendingReview={mutations.submitPendingReview}
             onSubmitProperties={mutations.submitProperties}
             onMutateStringItem={mutations.mutateStringItem}
+            aiReviewRunning={aiReviewRunning}
+            onRunAiReview={() => void handleRunAiReview()}
           />
         </div>
 

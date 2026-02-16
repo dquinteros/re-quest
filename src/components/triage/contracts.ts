@@ -137,6 +137,7 @@ export const TRIAGE_CONTROL_IDS = {
   propertiesMilestone: "triage-properties-milestone",
   propertiesProjects: "triage-properties-projects",
   propertiesSubmit: "triage-properties-submit",
+  aiReviewRun: "triage-ai-review-run",
 } as const;
 
 export function inboxItemControlId(itemId: string): string {

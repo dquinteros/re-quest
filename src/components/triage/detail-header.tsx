@@ -1,7 +1,8 @@
 "use client";
 
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Bot, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { TRIAGE_CONTROL_IDS } from "./contracts";
 
 function urgencyLabel(score: number): string {
@@ -24,9 +25,19 @@ interface DetailHeaderProps {
   title: string;
   url: string;
   urgencyScore: number;
+  aiReviewRunning?: boolean;
+  onRunAiReview?: () => void;
 }
 
-export function DetailHeader({ repository, number, title, url, urgencyScore }: DetailHeaderProps) {
+export function DetailHeader({
+  repository,
+  number,
+  title,
+  url,
+  urgencyScore,
+  aiReviewRunning = false,
+  onRunAiReview,
+}: DetailHeaderProps) {
   return (
     <header className="flex items-start justify-between gap-4 pb-4 border-b border-border">
       <div className="min-w-0 flex-1">
@@ -42,18 +53,38 @@ export function DetailHeader({ repository, number, title, url, urgencyScore }: D
           {title}
         </h2>
       </div>
-      <a
-        id={TRIAGE_CONTROL_IDS.openOnGithub}
-        data-control-id={TRIAGE_CONTROL_IDS.openOnGithub}
-        data-shortcut-target={TRIAGE_CONTROL_IDS.openOnGithub}
-        href={url}
-        target="_blank"
-        rel="noreferrer"
-        className="inline-flex items-center gap-1.5 shrink-0 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
-      >
-        <ExternalLink className="h-3.5 w-3.5" />
-        GitHub
-      </a>
+      <div className="flex items-center gap-2 shrink-0">
+        {onRunAiReview && (
+          <Button
+            id={TRIAGE_CONTROL_IDS.aiReviewRun}
+            data-control-id={TRIAGE_CONTROL_IDS.aiReviewRun}
+            variant="outline"
+            size="sm"
+            className="h-auto py-1.5 px-3 text-xs font-medium"
+            disabled={aiReviewRunning}
+            onClick={onRunAiReview}
+          >
+            {aiReviewRunning ? (
+              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+            ) : (
+              <Bot className="h-3.5 w-3.5 mr-1.5" />
+            )}
+            {aiReviewRunning ? "Starting..." : "AI Review"}
+          </Button>
+        )}
+        <a
+          id={TRIAGE_CONTROL_IDS.openOnGithub}
+          data-control-id={TRIAGE_CONTROL_IDS.openOnGithub}
+          data-shortcut-target={TRIAGE_CONTROL_IDS.openOnGithub}
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+          GitHub
+        </a>
+      </div>
     </header>
   );
 }

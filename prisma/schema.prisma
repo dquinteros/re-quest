@@ -58,6 +58,7 @@ enum ActionType {
   UPDATE_REVIEWERS
   SYNC_MANUAL
   SYNC_POLL
+  AI_REVIEW
 }
 
 enum SyncTrigger {

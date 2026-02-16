@@ -27,6 +27,8 @@ interface DetailPanelProps {
   onSubmitPendingReview: (event: FormEvent<HTMLFormElement>) => void;
   onSubmitProperties: (event: FormEvent<HTMLFormElement>) => void;
   onMutateStringItem: (target: MutateTarget, value: string, method: "POST" | "DELETE") => void;
+  aiReviewRunning?: boolean;
+  onRunAiReview?: () => void;
 }
 
 function DetailSkeleton() {
@@ -78,6 +80,8 @@ export function DetailPanel({
   onSubmitPendingReview,
   onSubmitProperties,
   onMutateStringItem,
+  aiReviewRunning = false,
+  onRunAiReview,
 }: DetailPanelProps) {
   if (!selectedId) {
     return (
@@ -144,6 +148,8 @@ export function DetailPanel({
             title={detail.title}
             url={detail.url}
             urgencyScore={detail.urgencyScore}
+            aiReviewRunning={aiReviewRunning}
+            onRunAiReview={onRunAiReview}
           />
           <DetailMeta detail={detail} />
           <DetailDescription detail={detail} />
