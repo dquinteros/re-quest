@@ -69,7 +69,7 @@ export function DetailHeader({
             ) : (
               <Bot className="h-3.5 w-3.5 mr-1.5" />
             )}
-            {aiReviewRunning ? "Starting..." : "AI Review"}
+            {aiReviewRunning ? "AI Review Running…" : "AI Review"}
           </Button>
         )}
         <a

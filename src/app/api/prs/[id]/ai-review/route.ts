@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { writeActionLog } from "@/lib/action-log";
+import { updateActionLogStatus, writeActionLog } from "@/lib/action-log";
 import { getViewerLogin } from "@/lib/github";
 import { fail, ok } from "@/lib/http";
 import {
@@ -42,24 +42,38 @@ export async function POST(
   const viewerLogin = (await getViewerLogin(octokit)) ?? sessionUser.login;
 
   try {
-    const child = spawn("npx", ["ai-pr-reviewer", prUrl], {
-      detached: true,
-      stdio: "ignore",
-      env: { ...process.env },
-    });
-
-    child.unref();
-
-    await writeActionLog({
+    const logId = await writeActionLog({
       actionType: "AI_REVIEW",
-      resultStatus: "SUCCESS",
+      resultStatus: "RUNNING",
       repository: prContext.fullName,
       pullNumber: prContext.number,
       actorLogin: viewerLogin,
       payload: { prUrl },
     });
 
-    return ok({ message: "AI review started", prUrl }, 202);
+    const child = spawn("npx", ["ai-pr-reviewer", prUrl], {
+      detached: true,
+      stdio: "ignore",
+      env: { ...process.env },
+    });
+
+    child.on("close", (code) => {
+      const status = code === 0 ? "SUCCESS" : "FAILED";
+      const errorMsg = code !== 0 ? `Process exited with code ${code}` : undefined;
+      updateActionLogStatus(logId, status, errorMsg).catch(() => {
+        /* best-effort update */
+      });
+    });
+
+    child.on("error", (err) => {
+      updateActionLogStatus(logId, "FAILED", err.message).catch(() => {
+        /* best-effort update */
+      });
+    });
+
+    child.unref();
+
+    return ok({ message: "AI review started", prUrl, logId }, 202);
   } catch (error) {
     await writeActionLog({
       actionType: "AI_REVIEW",

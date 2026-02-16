@@ -2,7 +2,7 @@
 
 import { formatDistanceToNowStrict } from "date-fns";
 import { signOut } from "next-auth/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -97,6 +97,80 @@ export function PrAttentionManager({
   const [signingOut, setSigningOut] = useState(false);
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
   const [aiReviewRunning, setAiReviewRunning] = useState(false);
+  const aiReviewPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopAiReviewPolling = useCallback(() => {
+    if (aiReviewPollRef.current) {
+      clearInterval(aiReviewPollRef.current);
+      aiReviewPollRef.current = null;
+    }
+  }, []);
+
+  const startAiReviewPolling = useCallback(
+    (prId: string) => {
+      stopAiReviewPolling();
+      setAiReviewRunning(true);
+
+      const poll = async () => {
+        try {
+          const res = await requestJson<{ status: string }>(
+            `/api/prs/${encodeURIComponent(prId)}/ai-review/status`,
+          );
+
+          if (res.status !== "running") {
+            stopAiReviewPolling();
+            setAiReviewRunning(false);
+
+            if (res.status === "success") {
+              addToast("AI review completed. Check the PR on GitHub for results.", "info");
+            } else if (res.status === "failed") {
+              addToast("AI review process failed.", "error");
+            }
+          }
+        } catch {
+          stopAiReviewPolling();
+          setAiReviewRunning(false);
+        }
+      };
+
+      aiReviewPollRef.current = setInterval(poll, 5_000);
+    },
+    [stopAiReviewPolling, addToast],
+  );
+
+  useEffect(() => {
+    return () => stopAiReviewPolling();
+  }, [stopAiReviewPolling]);
+
+  useEffect(() => {
+    if (!selectedId) {
+      stopAiReviewPolling();
+      setAiReviewRunning(false);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await requestJson<{ status: string }>(
+          `/api/prs/${encodeURIComponent(selectedId)}/ai-review/status`,
+        );
+        if (cancelled) return;
+        if (res.status === "running") {
+          startAiReviewPolling(selectedId);
+        } else {
+          setAiReviewRunning(false);
+        }
+      } catch {
+        if (!cancelled) setAiReviewRunning(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      stopAiReviewPolling();
+    };
+  }, [selectedId, startAiReviewPolling, stopAiReviewPolling]);
 
   const selectedListItem: PullRequestListItem | null = useMemo(() => {
     if (!selectedId || !inbox) return null;
@@ -126,9 +200,9 @@ export function PrAttentionManager({
         method: "POST",
       });
       addToast("AI review started. Results will be posted to the PR on GitHub.", "info");
+      startAiReviewPolling(selectedId);
     } catch (error) {
       addToast(error instanceof Error ? error.message : "Failed to start AI review", "error");
-    } finally {
       setAiReviewRunning(false);
     }
   }
