@@ -28,14 +28,15 @@ interface DigestMetrics {
 async function gatherMetrics(userId: string): Promise<DigestMetrics> {
   const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-  const trackedRepos = await prisma.trackedRepository.findMany({
-    where: { userId },
-    select: { repositoryId: true, fullName: true },
+  const trackedRepos = await prisma.repository.findMany({
+    where: {
+      isTracked: true,
+      OR: [{ userId }, { installation: { userId } }],
+    },
+    select: { id: true, fullName: true },
   });
 
-  const repoIds = trackedRepos
-    .map((r) => r.repositoryId)
-    .filter((id): id is string => id !== null);
+  const repoIds = trackedRepos.map((r) => r.id);
 
   const openPrs = await prisma.pullRequest.findMany({
     where: {

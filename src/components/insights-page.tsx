@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { signOut } from "next-auth/react";
-import { Bot, Loader2, RefreshCw, BarChart3, AlertTriangle, Users, Clock } from "lucide-react";
+import { Bot, Loader2, RefreshCw, BarChart3, AlertTriangle, Users, Clock, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AiFeatureBoundary } from "@/components/ai-feature-boundary";
@@ -68,6 +68,7 @@ export function InsightsPage({ viewerLabel }: InsightsPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const handleSignOut = useCallback(async () => {
     setSigningOut(true);
@@ -117,6 +118,56 @@ export function InsightsPage({ viewerLabel }: InsightsPageProps) {
     } finally {
       setGenerating(false);
     }
+  }
+
+  function buildMarkdown(): string {
+    const m = data?.metrics;
+    const sections: string[] = ["# Team Insights"];
+
+    if (m) {
+      sections.push(
+        "## Metrics",
+        `- **Open PRs:** ${m.totalOpenPrs}`,
+        `- **Needs Attention:** ${m.needsAttentionCount}`,
+        `- **Failing CI:** ${m.failingCiCount}`,
+        `- **Avg Urgency:** ${m.avgUrgencyScore}`,
+      );
+
+      if (Array.isArray(m.reviewerWorkload) && m.reviewerWorkload.length > 0) {
+        sections.push(
+          "",
+          "## Reviewer Workload",
+          "| Reviewer | PRs |",
+          "|----------|-----|",
+          ...m.reviewerWorkload.map((r) => `| @${r.login} | ${r.count} |`),
+        );
+      }
+
+      if (Array.isArray(m.stalePrs) && m.stalePrs.length > 0) {
+        sections.push(
+          "",
+          "## Stale PRs",
+          "| Repository | PR | Title | Days Since Update |",
+          "|------------|----|-------|-------------------|",
+          ...m.stalePrs.map(
+            (pr) => `| ${pr.repository} | #${pr.number} | ${pr.title} | ${pr.daysSinceUpdate} |`,
+          ),
+        );
+      }
+    }
+
+    if (data?.markdown) {
+      sections.push("", "## AI Digest", "", data.markdown);
+    }
+
+    return sections.join("\n");
+  }
+
+  async function handleCopy() {
+    const md = buildMarkdown();
+    await navigator.clipboard.writeText(md);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   const metrics = data?.metrics;
@@ -289,6 +340,20 @@ export function InsightsPage({ viewerLabel }: InsightsPageProps) {
                     {data?.cached && (
                       <Badge variant="secondary" className="text-[10px]">Cached</Badge>
                     )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 ml-auto"
+                      disabled={!data || !metrics}
+                      onClick={() => void handleCopy()}
+                      title="Copy as Markdown"
+                    >
+                      {copied ? (
+                        <Check className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
                   </div>
 
                   {generating && (
