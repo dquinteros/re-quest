@@ -111,6 +111,18 @@ export interface PrRelationship {
   reason: string;
 }
 
+export interface DependencyGroup {
+  repository: string;
+  items: PullRequestListItem[];
+  totalCount: number;
+}
+
+export interface DependenciesResponse {
+  groups: DependencyGroup[];
+  totalCount: number;
+  syncedAt: string | null;
+}
+
 export interface ApiError {
   error: string;
   details?: string;

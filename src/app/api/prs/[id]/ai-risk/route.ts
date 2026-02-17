@@ -13,6 +13,7 @@ import {
 import { resolveRouteParams, type DynamicRouteContext } from "@/lib/route-params";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { getUserSettings } from "@/lib/settings";
 import type { RiskAssessment } from "@/types/pr";
 
 const OUTPUT_SCHEMA = JSON.stringify({
@@ -35,11 +36,13 @@ const OUTPUT_SCHEMA = JSON.stringify({
           severity: { type: "string", enum: ["low", "medium", "high"] },
         },
         required: ["category", "description", "severity"],
+        additionalProperties: false,
       },
     },
     explanation: { type: "string" },
   },
   required: ["riskLevel", "riskFactors", "explanation"],
+  additionalProperties: false,
 });
 
 export async function POST(
@@ -60,6 +63,11 @@ export async function POST(
   const prContext = await getPullRequestGitHubContext(id, sessionUser.id);
   if (!prContext) {
     return fail("Pull request not found", undefined, 404);
+  }
+
+  const userSettings = await getUserSettings(sessionUser.id);
+  if (!userSettings.ai.enabledFeatures.risk) {
+    return fail("Risk Assessment is disabled in settings", undefined, 400);
   }
 
   const cached = await getCachedResult<RiskAssessment>("ai_risk_assessment", id);
@@ -105,9 +113,14 @@ export async function POST(
       outputSchema: OUTPUT_SCHEMA,
       contextContent: contextDoc,
       contextFilename: "pr-context.md",
+      model: userSettings.ai.model || undefined,
+      timeout: userSettings.ai.timeoutMs,
     });
 
-    await setCachedResult("ai_risk_assessment", result, { pullRequestId: id });
+    await setCachedResult("ai_risk_assessment", result, {
+      pullRequestId: id,
+      ttlHours: userSettings.cache.ttlHours.ai_risk_assessment,
+    });
 
     // Store risk level on the attention record
     await prisma.pullRequestAttention.updateMany({

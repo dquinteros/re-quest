@@ -12,6 +12,7 @@ import {
 } from "@/lib/pr-mutations";
 import { resolveRouteParams, type DynamicRouteContext } from "@/lib/route-params";
 import { prisma } from "@/lib/db";
+import { getUserSettings } from "@/lib/settings";
 import type { LabelSuggestion } from "@/types/pr";
 
 interface SuggestLabelsResult {
@@ -27,14 +28,16 @@ const OUTPUT_SCHEMA = JSON.stringify({
         type: "object",
         properties: {
           name: { type: "string" },
-          confidence: { type: "number", minimum: 0, maximum: 1 },
+          confidence: { type: "number" },
           reason: { type: "string" },
         },
         required: ["name", "confidence", "reason"],
+        additionalProperties: false,
       },
     },
   },
   required: ["suggestedLabels"],
+  additionalProperties: false,
 });
 
 export async function POST(
@@ -55,6 +58,11 @@ export async function POST(
   const prContext = await getPullRequestGitHubContext(id, sessionUser.id);
   if (!prContext) {
     return fail("Pull request not found", undefined, 404);
+  }
+
+  const userSettings = await getUserSettings(sessionUser.id);
+  if (!userSettings.ai.enabledFeatures.labels) {
+    return fail("Label Suggestions are disabled in settings", undefined, 400);
   }
 
   const cached = await getCachedResult<SuggestLabelsResult>("ai_label_suggest", id);
@@ -117,9 +125,14 @@ export async function POST(
       outputSchema: OUTPUT_SCHEMA,
       contextContent: contextDoc,
       contextFilename: "pr-labels-context.md",
+      model: userSettings.ai.model || undefined,
+      timeout: userSettings.ai.timeoutMs,
     });
 
-    await setCachedResult("ai_label_suggest", result, { pullRequestId: id });
+    await setCachedResult("ai_label_suggest", result, {
+      pullRequestId: id,
+      ttlHours: userSettings.cache.ttlHours.ai_label_suggest,
+    });
 
     await writeActionLog({
       actionType: "AI_LABEL_SUGGEST",

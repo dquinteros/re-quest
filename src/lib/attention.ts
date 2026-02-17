@@ -1,5 +1,7 @@
 import type { CiState, ReviewState } from "@/types/pr";
 import type { AttentionScoreBreakdown } from "@/types/pr";
+import type { ScoringWeights } from "@/lib/settings";
+import { DEFAULT_SCORING_WEIGHTS } from "@/lib/settings";
 
 export interface AttentionInput {
   reviewRequested: boolean;
@@ -20,26 +22,29 @@ export interface AttentionInput {
 
 export function calculateUrgencyScore(
   input: AttentionInput,
+  weights?: Partial<ScoringWeights>,
 ): AttentionScoreBreakdown {
+  const w = { ...DEFAULT_SCORING_WEIGHTS, ...weights };
+
   const now = Date.now();
   const hoursStale = Math.max(
     0,
     (now - input.updatedAt.getTime()) / (1000 * 60 * 60),
   );
 
-  const reviewRequestBoost = input.reviewRequested ? 25 : 0;
-  const assigneeBoost = input.assignedToMe ? 20 : 0;
+  const reviewRequestBoost = input.reviewRequested ? w.reviewRequestBoost : 0;
+  const assigneeBoost = input.assignedToMe ? w.assigneeBoost : 0;
   const ciPenalty =
     input.ciState === "FAILURE"
-      ? 15
+      ? w.ciFailurePenalty
       : input.ciState === "PENDING"
-        ? 5
+        ? w.ciPendingPenalty
         : input.ciState === "UNKNOWN"
-          ? 3
+          ? Math.round(w.ciPendingPenalty * 0.6)
           : 0;
-  const stalenessBoost = Math.min(30, Math.floor(hoursStale / 4));
-  const draftPenalty = input.isDraft ? 20 : 0;
-  const mentionBoost = Math.min(20, (input.mentionCount ?? 0) * 5);
+  const stalenessBoost = Math.min(w.stalenessMaxBoost, Math.floor(hoursStale / 4));
+  const draftPenalty = input.isDraft ? w.draftPenalty : 0;
+  const mentionBoost = Math.min(20, (input.mentionCount ?? 0) * w.mentionBoostPerMention);
 
   const totalLines = (input.additions ?? 0) + (input.deletions ?? 0);
   const sizeBoost = Math.min(20, Math.floor(Math.log2(totalLines + 1) * 2));
@@ -48,7 +53,7 @@ export function calculateUrgencyScore(
 
   const commitBoost = Math.min(10, input.commitCount ?? 0);
 
-  const myLastActivityPenalty = input.lastActivityByViewer ? 10 : 0;
+  const myLastActivityPenalty = input.lastActivityByViewer ? w.myLastActivityPenalty : 0;
 
   const finalScore = Math.max(
     0,

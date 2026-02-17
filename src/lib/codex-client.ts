@@ -24,6 +24,8 @@ export interface CodexExecOptions {
   contextContent?: string;
   /** Filename for the context temp file (default: context.txt) */
   contextFilename?: string;
+  /** Model name to pass via --model flag (e.g. "o4-mini", "o3") */
+  model?: string;
 }
 
 /**
@@ -56,6 +58,8 @@ export async function runCodex<T = string>(
   let tempDir: string | null = null;
   let contextFilePath: string | null = null;
 
+  let schemaFilePath: string | null = null;
+
   try {
     let prompt = options.prompt;
 
@@ -72,8 +76,17 @@ export async function runCodex<T = string>(
     args.push("--sandbox", "read-only");
     args.push("--full-auto");
 
+    if (options.model) {
+      args.push("--model", options.model);
+    }
+
     if (options.outputSchema) {
-      args.push("--output-schema", options.outputSchema);
+      if (!tempDir) {
+        tempDir = await mkdtemp(join(tmpdir(), "codex-ctx-"));
+      }
+      schemaFilePath = join(tempDir, "output-schema.json");
+      await writeFile(schemaFilePath, options.outputSchema, "utf-8");
+      args.push("--output-schema", schemaFilePath);
     }
 
     args.push(prompt);
@@ -109,6 +122,9 @@ export async function runCodex<T = string>(
   } finally {
     if (contextFilePath) {
       await unlink(contextFilePath).catch(() => {});
+    }
+    if (schemaFilePath) {
+      await unlink(schemaFilePath).catch(() => {});
     }
     if (tempDir) {
       const { rm } = await import("node:fs/promises");

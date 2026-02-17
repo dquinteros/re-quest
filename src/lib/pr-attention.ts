@@ -1,6 +1,7 @@
 import type { CiState, Prisma, ReviewState } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { calculateUrgencyScore, deriveAttentionReason } from "@/lib/attention";
+import type { ScoringWeights } from "@/lib/settings";
 
 const STALE_ATTENTION_THRESHOLD = 20;
 
@@ -39,7 +40,7 @@ function hasCaseInsensitiveMatch(values: string[], expected: string): boolean {
   return values.some((value) => value.toLowerCase() === needle);
 }
 
-export function buildAttentionState(input: Omit<UpsertAttentionStateInput, "pullRequestId">): {
+export function buildAttentionState(input: Omit<UpsertAttentionStateInput, "pullRequestId">, scoringWeights?: Partial<ScoringWeights>): {
   needsAttention: boolean;
   attentionReason: string | null;
   urgencyScore: number;
@@ -72,7 +73,7 @@ export function buildAttentionState(input: Omit<UpsertAttentionStateInput, "pull
     lastActivityByViewer: input.lastActivityByViewer ?? false,
   };
 
-  const score = calculateUrgencyScore(scoringInput);
+  const score = calculateUrgencyScore(scoringInput, scoringWeights);
   const fallbackReason =
     score.finalScore >= STALE_ATTENTION_THRESHOLD ? "Stale pull request" : null;
   const attentionReason = deriveAttentionReason(scoringInput) ?? fallbackReason;

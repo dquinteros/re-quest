@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sun, Moon, LogOut } from "lucide-react";
+import { Sun, Moon, LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -49,6 +49,17 @@ export function AppNav({
             Triage
           </Link>
           <Link
+            href="/dependencies"
+            className={cn(
+              "px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
+              pathname === "/dependencies"
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+            )}
+          >
+            Dependencies
+          </Link>
+          <Link
             href="/tracked-repositories"
             className={cn(
               "px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
@@ -87,6 +98,19 @@ export function AppNav({
       <div className="ml-auto flex items-center gap-1.5">
         {viewerLabel && (
           <span className="text-xs text-muted-foreground hidden sm:inline mr-2">{viewerLabel}</span>
+        )}
+        {authenticated && (
+          <Link href="/settings">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("h-8 w-8", pathname === "/settings" && "bg-accent text-accent-foreground")}
+              aria-label="Settings"
+              title="Settings"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+          </Link>
         )}
         {onToggleTheme && (
           <Button

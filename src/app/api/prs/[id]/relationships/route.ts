@@ -12,6 +12,7 @@ import {
 } from "@/lib/pr-mutations";
 import { resolveRouteParams, type DynamicRouteContext } from "@/lib/route-params";
 import { prisma } from "@/lib/db";
+import { getUserSettings } from "@/lib/settings";
 
 interface PrOverview {
   id: string;
@@ -48,10 +49,12 @@ const OUTPUT_SCHEMA = JSON.stringify({
           reason: { type: "string" },
         },
         required: ["prNumberA", "prNumberB", "type", "reason"],
+        additionalProperties: false,
       },
     },
   },
   required: ["relationships"],
+  additionalProperties: false,
 });
 
 export async function POST(
@@ -72,6 +75,11 @@ export async function POST(
   const prContext = await getPullRequestGitHubContext(id, sessionUser.id);
   if (!prContext) {
     return fail("Pull request not found", undefined, 404);
+  }
+
+  const userSettings = await getUserSettings(sessionUser.id);
+  if (!userSettings.ai.enabledFeatures.relationships) {
+    return fail("PR Relationships are disabled in settings", undefined, 400);
   }
 
   const cached = await getCachedResult<RelationshipsResult>("ai_dependency_detection", id);
@@ -171,9 +179,14 @@ export async function POST(
       outputSchema: OUTPUT_SCHEMA,
       contextContent: contextDoc,
       contextFilename: "pr-relationships.md",
+      model: userSettings.ai.model || undefined,
+      timeout: userSettings.ai.timeoutMs,
     });
 
-    await setCachedResult("ai_dependency_detection", result, { pullRequestId: id });
+    await setCachedResult("ai_dependency_detection", result, {
+      pullRequestId: id,
+      ttlHours: userSettings.cache.ttlHours.ai_dependency_detection,
+    });
 
     await writeActionLog({
       actionType: "AI_DEPENDENCY_DETECTION",

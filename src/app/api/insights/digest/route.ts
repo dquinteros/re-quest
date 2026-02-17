@@ -7,6 +7,7 @@ import {
   requireAuthenticatedSessionUser,
 } from "@/lib/pr-mutations";
 import { prisma } from "@/lib/db";
+import { getUserSettings } from "@/lib/settings";
 
 interface DigestMetrics {
   totalOpenPrs: number;
@@ -162,6 +163,11 @@ export async function POST(request: Request) {
     return fail("Failed to authenticate", error instanceof Error ? error.message : "Unknown error", 500);
   }
 
+  const userSettings = await getUserSettings(sessionUser.id);
+  if (!userSettings.ai.enabledFeatures.digest) {
+    return fail("Weekly Digest is disabled in settings", undefined, 400);
+  }
+
   try {
     const metrics = await gatherMetrics(sessionUser.id);
     const contextDoc = formatMetricsForCodex(metrics);
@@ -177,6 +183,8 @@ export async function POST(request: Request) {
         "Keep it brief and actionable. Use markdown formatting.",
       contextContent: contextDoc,
       contextFilename: "team-metrics.md",
+      model: userSettings.ai.model || undefined,
+      timeout: userSettings.ai.timeoutMs,
     });
 
     const digestMarkdown = result.raw.trim() || "No digest generated.";
@@ -184,7 +192,7 @@ export async function POST(request: Request) {
     await setCachedResult("ai_digest", { markdown: digestMarkdown, metrics }, {
       repository: "__global__",
       resultText: digestMarkdown,
-      ttlHours: 4,
+      ttlHours: userSettings.cache.ttlHours.ai_digest,
     });
 
     await writeActionLog({

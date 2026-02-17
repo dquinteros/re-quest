@@ -12,6 +12,7 @@ import {
 } from "@/lib/pr-mutations";
 import { resolveRouteParams, type DynamicRouteContext } from "@/lib/route-params";
 import { prisma } from "@/lib/db";
+import { getUserSettings } from "@/lib/settings";
 import type { AiSummary } from "@/types/pr";
 
 const OUTPUT_SCHEMA = JSON.stringify({
@@ -27,6 +28,7 @@ const OUTPUT_SCHEMA = JSON.stringify({
           description: { type: "string" },
         },
         required: ["file", "description"],
+        additionalProperties: false,
       },
     },
     changeType: {
@@ -35,6 +37,7 @@ const OUTPUT_SCHEMA = JSON.stringify({
     },
   },
   required: ["summary", "keyChanges", "changeType"],
+  additionalProperties: false,
 });
 
 export async function POST(
@@ -55,6 +58,11 @@ export async function POST(
   const prContext = await getPullRequestGitHubContext(id, sessionUser.id);
   if (!prContext) {
     return fail("Pull request not found", undefined, 404);
+  }
+
+  const userSettings = await getUserSettings(sessionUser.id);
+  if (!userSettings.ai.enabledFeatures.summary) {
+    return fail("AI Summary is disabled in settings", undefined, 400);
   }
 
   const cached = await getCachedResult<AiSummary>("ai_summary", id);
@@ -94,9 +102,14 @@ export async function POST(
       outputSchema: OUTPUT_SCHEMA,
       contextContent: contextDoc,
       contextFilename: "pr-context.md",
+      model: userSettings.ai.model || undefined,
+      timeout: userSettings.ai.timeoutMs,
     });
 
-    await setCachedResult("ai_summary", result, { pullRequestId: id });
+    await setCachedResult("ai_summary", result, {
+      pullRequestId: id,
+      ttlHours: userSettings.cache.ttlHours.ai_summary,
+    });
 
     await writeActionLog({
       actionType: "AI_SUMMARY",

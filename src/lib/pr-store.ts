@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { toPullRequestDetail, toPullRequestListItem } from "@/lib/pr-dto";
 import { parseFlowRules, validatePrFlow, DEFAULT_FLOW_RULES, type FlowRule } from "@/lib/git-flow";
 import type { ParsedInboxQuery } from "@/lib/query";
-import type { InboxResponse, PullRequestDetail } from "@/types/pr";
+import type { DependenciesResponse, DependencyGroup, InboxResponse, PullRequestDetail } from "@/types/pr";
 
 const includeRelations = {
   repository: true,
@@ -77,6 +77,7 @@ export async function listInboxPullRequests(
 ): Promise<InboxResponse> {
   const where: Prisma.PullRequestWhereInput = {
     ...ownershipFilter(scope),
+    NOT: { authorLogin: { endsWith: "[bot]" } },
     ...(query.q
       ? {
           OR: [
@@ -190,11 +191,14 @@ export async function listInboxPullRequests(
   const offset = (query.page - 1) * query.pageSize;
   const paged = flowFiltered.slice(offset, offset + query.pageSize);
 
+  const notBot: Prisma.PullRequestWhereInput = { NOT: { authorLogin: { endsWith: "[bot]" } } };
+
   const [needsReview, changesRequestedFollowUp, failingCi, hasConflicts, latestSync, allBranchRefs] =
     await Promise.all([
       prisma.pullRequest.count({
         where: {
           ...ownershipFilter(scope),
+          ...notBot,
           attentionState: { needsAttention: true },
           reviewState: "REVIEW_REQUESTED",
         },
@@ -202,6 +206,7 @@ export async function listInboxPullRequests(
       prisma.pullRequest.count({
         where: {
           ...ownershipFilter(scope),
+          ...notBot,
           attentionState: { needsAttention: true },
           reviewState: "CHANGES_REQUESTED",
         },
@@ -209,6 +214,7 @@ export async function listInboxPullRequests(
       prisma.pullRequest.count({
         where: {
           ...ownershipFilter(scope),
+          ...notBot,
           attentionState: { needsAttention: true },
           ciState: "FAILURE",
         },
@@ -216,6 +222,7 @@ export async function listInboxPullRequests(
       prisma.pullRequest.count({
         where: {
           ...ownershipFilter(scope),
+          ...notBot,
           attentionState: { needsAttention: true },
           mergeable: false,
         },
@@ -229,6 +236,7 @@ export async function listInboxPullRequests(
       prisma.pullRequest.findMany({
         where: {
           ...ownershipFilter(scope),
+          ...notBot,
           attentionState: { needsAttention: true },
           headRef: { not: null },
           baseRef: { not: null },
@@ -256,6 +264,98 @@ export async function listInboxPullRequests(
       hasConflicts,
       flowViolations,
     },
+    syncedAt: latestSync?.finishedAt?.toISOString() ?? null,
+  };
+}
+
+export interface ParsedDependencyQuery {
+  repo: string[];
+  ciState: Array<"SUCCESS" | "FAILURE" | "PENDING" | "UNKNOWN">;
+  assigned: "true" | "false" | "all";
+  sort: "urgency" | "updated_desc" | "updated_asc" | "repo";
+}
+
+export async function listDependencyPullRequests(
+  query: ParsedDependencyQuery,
+  scope: OwnedPullRequestScope,
+): Promise<DependenciesResponse> {
+  const where: Prisma.PullRequestWhereInput = {
+    ...ownershipFilter(scope),
+    authorLogin: { endsWith: "[bot]" },
+    state: "OPEN",
+    ...(query.repo.length
+      ? {
+          OR: [
+            {
+              repository: {
+                userId: scope.userId,
+                fullName: { in: query.repo },
+              },
+            },
+            {
+              repository: {
+                installation: { userId: scope.userId },
+                fullName: { in: query.repo },
+              },
+            },
+          ],
+        }
+      : {}),
+    ...(query.ciState.length ? { ciState: { in: query.ciState } } : {}),
+  };
+
+  const orderBy: Prisma.PullRequestOrderByWithRelationInput[] =
+    query.sort === "urgency"
+      ? [{ attentionState: { urgencyScore: "desc" } }, { githubUpdatedAt: "desc" }]
+      : query.sort === "updated_asc"
+        ? [{ githubUpdatedAt: "asc" }]
+        : [{ githubUpdatedAt: "desc" }];
+
+  const rawItems = await prisma.pullRequest.findMany({
+    where,
+    include: includeRelations,
+    orderBy,
+    take: 500,
+  });
+
+  const flowRulesMap = await loadFlowRulesMap(scope.userId);
+
+  let items = rawItems.map((item) =>
+    toPullRequestListItem(item, getFlowRulesForRepo(item.repository.fullName, flowRulesMap)),
+  );
+
+  if (query.assigned === "true") {
+    items = items.filter((item) => item.assignees.length > 0);
+  } else if (query.assigned === "false") {
+    items = items.filter((item) => item.assignees.length === 0);
+  }
+
+  const groupMap = new Map<string, typeof items>();
+  for (const item of items) {
+    const existing = groupMap.get(item.repository);
+    if (existing) {
+      existing.push(item);
+    } else {
+      groupMap.set(item.repository, [item]);
+    }
+  }
+
+  const groups: DependencyGroup[] = Array.from(groupMap.entries())
+    .sort((a, b) => b[1].length - a[1].length)
+    .map(([repository, repoItems]) => ({
+      repository,
+      items: repoItems,
+      totalCount: repoItems.length,
+    }));
+
+  const latestSync = await prisma.syncRun.findFirst({
+    where: { viewerLogin: scope.userLogin },
+    orderBy: { startedAt: "desc" },
+  });
+
+  return {
+    groups,
+    totalCount: items.length,
     syncedAt: latestSync?.finishedAt?.toISOString() ?? null,
   };
 }

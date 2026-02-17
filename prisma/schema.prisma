@@ -89,6 +89,7 @@ model User {
   trackedRepositories TrackedRepository[]
   oauthAccounts       OAuthAccount[]
   flowConfigs         FlowConfig[]
+  settings            UserSettings?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
 }
@@ -274,6 +275,17 @@ model FlowConfig {
   updatedAt    DateTime @updatedAt
 
   @@unique([userId, repoFullName])
+  @@index([userId])
+}
+
+model UserSettings {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  settings  Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([userId])
 }
 

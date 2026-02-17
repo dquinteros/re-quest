@@ -12,6 +12,7 @@ import {
 } from "@/lib/pr-mutations";
 import { resolveRouteParams, type DynamicRouteContext } from "@/lib/route-params";
 import { prisma } from "@/lib/db";
+import { getUserSettings } from "@/lib/settings";
 import type { ReviewerSuggestion } from "@/types/pr";
 
 interface SuggestReviewersResult {
@@ -27,17 +28,19 @@ const OUTPUT_SCHEMA = JSON.stringify({
         type: "object",
         properties: {
           login: { type: "string" },
-          score: { type: "number", minimum: 0, maximum: 100 },
+          score: { type: "number" },
           reasons: {
             type: "array",
             items: { type: "string" },
           },
         },
         required: ["login", "score", "reasons"],
+        additionalProperties: false,
       },
     },
   },
   required: ["suggestedReviewers"],
+  additionalProperties: false,
 });
 
 async function gatherReviewerContext(
@@ -159,6 +162,11 @@ export async function POST(
     return fail("Pull request not found", undefined, 404);
   }
 
+  const userSettings = await getUserSettings(sessionUser.id);
+  if (!userSettings.ai.enabledFeatures.reviewers) {
+    return fail("Reviewer Suggestions are disabled in settings", undefined, 400);
+  }
+
   const cached = await getCachedResult<SuggestReviewersResult>("ai_reviewer_suggest", id);
   if (cached) {
     return ok({ ...cached, cached: true });
@@ -207,9 +215,14 @@ export async function POST(
       outputSchema: OUTPUT_SCHEMA,
       contextContent: fullContext,
       contextFilename: "reviewer-context.md",
+      model: userSettings.ai.model || undefined,
+      timeout: userSettings.ai.timeoutMs,
     });
 
-    await setCachedResult("ai_reviewer_suggest", result, { pullRequestId: id });
+    await setCachedResult("ai_reviewer_suggest", result, {
+      pullRequestId: id,
+      ttlHours: userSettings.cache.ttlHours.ai_reviewer_suggest,
+    });
 
     await writeActionLog({
       actionType: "AI_REVIEWER_SUGGEST",
