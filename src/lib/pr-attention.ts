@@ -22,6 +22,7 @@ export interface UpsertAttentionStateInput {
   requestedReviewers: string[];
   body: string | null;
   viewerLogin: string | null;
+  viewerTeams?: string[];
   lastActivityByViewer?: boolean;
   viewerParticipated?: boolean;
 }
@@ -53,8 +54,13 @@ export function buildAttentionState(input: Omit<UpsertAttentionStateInput, "pull
     ? hasCaseInsensitiveMatch(input.assignees, viewerLogin)
     : false;
 
+  const viewerTeamSlugs = (input.viewerTeams ?? []).map((s) => s.toLowerCase());
+
   const reviewRequested = viewerLogin
-    ? hasCaseInsensitiveMatch(input.requestedReviewers, viewerLogin)
+    ? hasCaseInsensitiveMatch(input.requestedReviewers, viewerLogin) ||
+      input.requestedReviewers
+        .filter((r) => r.startsWith("team:"))
+        .some((r) => viewerTeamSlugs.includes(r.slice(5).toLowerCase()))
     : input.reviewState === "REVIEW_REQUESTED";
 
   const scoringInput = {
@@ -111,6 +117,7 @@ export async function upsertAttentionState(input: UpsertAttentionStateInput): Pr
     requestedReviewers: input.requestedReviewers,
     body: input.body,
     viewerLogin: input.viewerLogin,
+    viewerTeams: input.viewerTeams,
     lastActivityByViewer: input.lastActivityByViewer,
   });
 

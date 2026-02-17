@@ -330,4 +330,115 @@ describe("buildAttentionState", () => {
     expect(result.attentionReason).toBe("CI status unknown");
     expect(result.urgencyScore).toBe(3);
   });
+
+  it("sets needsAttention when a team review request matches viewer teams", () => {
+    const now = new Date("2026-02-14T12:00:00.000Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+
+    const result = buildAttentionState({
+      reviewState: "REVIEW_REQUESTED",
+      ciState: "SUCCESS",
+      isDraft: false,
+      updatedAt: now,
+      createdAt: now,
+      isMergeable: null,
+      additions: null,
+      deletions: null,
+      commentCount: null,
+      commitCount: null,
+      labels: [],
+      assignees: [],
+      requestedReviewers: ["team:backend-devs"],
+      body: null,
+      viewerLogin: "dquinteros",
+      viewerTeams: ["backend-devs"],
+    });
+
+    expect(result.needsAttention).toBe(true);
+    expect(result.attentionReason).toBe("Review requested");
+  });
+
+  it("does not set needsAttention when team review request does not match viewer teams", () => {
+    const now = new Date("2026-02-14T12:00:00.000Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+
+    const result = buildAttentionState({
+      reviewState: "REVIEW_REQUESTED",
+      ciState: "SUCCESS",
+      isDraft: false,
+      updatedAt: now,
+      createdAt: now,
+      isMergeable: null,
+      additions: null,
+      deletions: null,
+      commentCount: null,
+      commitCount: null,
+      labels: [],
+      assignees: [],
+      requestedReviewers: ["team:frontend-devs"],
+      body: null,
+      viewerLogin: "dquinteros",
+      viewerTeams: ["backend-devs"],
+    });
+
+    expect(result.needsAttention).toBe(false);
+  });
+
+  it("sets needsAttention with mixed user and team reviewers when team matches", () => {
+    const now = new Date("2026-02-14T12:00:00.000Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+
+    const result = buildAttentionState({
+      reviewState: "REVIEW_REQUESTED",
+      ciState: "SUCCESS",
+      isDraft: false,
+      updatedAt: now,
+      createdAt: now,
+      isMergeable: null,
+      additions: null,
+      deletions: null,
+      commentCount: null,
+      commitCount: null,
+      labels: [],
+      assignees: [],
+      requestedReviewers: ["other-user", "team:reviewers"],
+      body: null,
+      viewerLogin: "dquinteros",
+      viewerTeams: ["reviewers", "backend-devs"],
+    });
+
+    expect(result.needsAttention).toBe(true);
+    expect(result.attentionReason).toBe("Review requested");
+  });
+
+  it("matches team review requests case-insensitively", () => {
+    const now = new Date("2026-02-14T12:00:00.000Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+
+    const result = buildAttentionState({
+      reviewState: "REVIEW_REQUESTED",
+      ciState: "SUCCESS",
+      isDraft: false,
+      updatedAt: now,
+      createdAt: now,
+      isMergeable: null,
+      additions: null,
+      deletions: null,
+      commentCount: null,
+      commitCount: null,
+      labels: [],
+      assignees: [],
+      requestedReviewers: ["team:Backend-Devs"],
+      body: null,
+      viewerLogin: "dquinteros",
+      viewerTeams: ["backend-devs"],
+    });
+
+    expect(result.needsAttention).toBe(true);
+    expect(result.attentionReason).toBe("Review requested");
+  });
 });

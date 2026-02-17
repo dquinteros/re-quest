@@ -681,6 +681,7 @@ export async function syncSinglePullRequest(params: {
   pullNumber: number;
   repositoryId: string;
   viewerLogin: string | null;
+  viewerTeams?: string[];
 }): Promise<string> {
   const { octokit, owner, repo, pullNumber, repositoryId, viewerLogin } = params;
 
@@ -829,6 +830,7 @@ export async function syncSinglePullRequest(params: {
     requestedReviewers,
     body: pull.body,
     viewerLogin,
+    viewerTeams: params.viewerTeams,
     lastActivityByViewer,
     viewerParticipated,
   });
@@ -843,6 +845,7 @@ async function syncRepository(
     installationId: string;
     userId: string;
     viewerLogin: string | null;
+    viewerTeams: string[];
   },
 ): Promise<{
   pulledCount: number;
@@ -1006,6 +1009,7 @@ async function syncRepository(
         requestedReviewers,
         body: pull.body,
         viewerLogin: params.viewerLogin,
+        viewerTeams: params.viewerTeams,
         lastActivityByViewer,
         viewerParticipated,
       });
@@ -1055,6 +1059,12 @@ export async function runSync(options: RunSyncOptions = {}): Promise<SyncResult>
     githubToken: runUser.githubToken,
   };
 
+  const viewerTeamsResponse = await octokit.paginate(
+    octokit.rest.teams.listForAuthenticatedUser,
+    { per_page: 100 },
+  );
+  const viewerTeamSlugs = viewerTeamsResponse.map((t) => t.slug);
+
   const installationId = await ensureUserInstallation(syncUser);
   const trackedRepoResolution = await resolveTrackedRepoRefsForSync({
     user: syncUser,
@@ -1091,6 +1101,7 @@ export async function runSync(options: RunSyncOptions = {}): Promise<SyncResult>
           installationId,
           userId: syncUser.id,
           viewerLogin: syncUser.login,
+          viewerTeams: viewerTeamSlugs,
         });
 
         pulledCount += repoResult.pulledCount;
