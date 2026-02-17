@@ -5,6 +5,7 @@ import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import type { Components } from "react-markdown";
 import { Badge } from "@/components/ui/badge";
+import { AiFeatureBoundary } from "@/components/ai-feature-boundary";
 import type { PullRequestDetail } from "@/types/pr";
 import { DetailAiSummary } from "./detail-ai-summary";
 import { DetailRiskAssessment } from "./detail-risk-assessment";
@@ -66,22 +67,28 @@ export function DetailDescription({ detail }: DetailDescriptionProps) {
       </div>
 
       {/* AI Summary */}
-      <DetailAiSummary
-        pullRequestId={detail.id}
-        initialSummary={detail.aiSummary}
-      />
+      <AiFeatureBoundary featureLabel="AI Summary">
+        <DetailAiSummary
+          pullRequestId={detail.id}
+          initialSummary={detail.aiSummary}
+        />
+      </AiFeatureBoundary>
 
       {/* Risk Assessment */}
-      <DetailRiskAssessment
-        pullRequestId={detail.id}
-        initialAssessment={detail.riskAssessment}
-      />
+      <AiFeatureBoundary featureLabel="Risk Assessment">
+        <DetailRiskAssessment
+          pullRequestId={detail.id}
+          initialAssessment={detail.riskAssessment}
+        />
+      </AiFeatureBoundary>
 
       {/* PR Relationships */}
-      <DetailPrRelationships
-        pullRequestId={detail.id}
-        currentPrNumber={detail.number}
-      />
+      <AiFeatureBoundary featureLabel="PR Relationships">
+        <DetailPrRelationships
+          pullRequestId={detail.id}
+          currentPrNumber={detail.number}
+        />
+      </AiFeatureBoundary>
 
       {/* Score breakdown */}
       {detail.scoreBreakdown && (

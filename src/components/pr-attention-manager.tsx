@@ -11,6 +11,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable";
+import {
   SHORTCUT_DEFINITIONS,
   useKeyboardShortcuts,
 } from "@/hooks/use-keyboard-shortcuts";
@@ -178,15 +183,8 @@ export function PrAttentionManager({
     return inbox.items.find((item) => item.id === selectedId) ?? null;
   }, [inbox, selectedId]);
 
-  const repoOptions = useMemo(() => {
-    if (!inbox) return [];
-    return Array.from(new Set(inbox.items.map((item) => item.repository))).sort();
-  }, [inbox]);
-
-  const authorOptions = useMemo(() => {
-    if (!inbox) return [];
-    return Array.from(new Set(inbox.items.map((item) => item.authorLogin))).sort();
-  }, [inbox]);
+  const repoOptions = useMemo(() => inbox?.availableRepos ?? [], [inbox]);
+  const authorOptions = useMemo(() => inbox?.availableAuthors ?? [], [inbox]);
 
   const selectedUrl = detail?.url ?? selectedListItem?.url ?? null;
 
@@ -324,41 +322,45 @@ export function PrAttentionManager({
           </div>
         )}
 
-        <div className="flex flex-1 min-h-0">
-          <InboxPanel
-            inbox={inbox}
-            inboxLoading={inboxLoading}
-            selectedId={selectedId}
-            filters={filters}
-            activePreset={activePreset}
-            repoOptions={repoOptions}
-            authorOptions={authorOptions}
-            onSelectPullRequest={setSelectedId}
-            onPatchFilters={patchFilters}
-            onClearFilters={clearFilters}
-            onApplyPreset={applyPreset}
-          />
-
-          <DetailPanel
-            selectedId={selectedId}
-            selectedListItem={selectedListItem}
-            detail={detail}
-            detailLoading={detailLoading}
-            detailError={detailError}
-            writing={mutations.writing}
-            form={mutations.form}
-            setFormField={mutations.setFormField}
-            onSubmitComment={mutations.submitComment}
-            onSubmitQuickReview={mutations.submitQuickReview}
-            onSubmitPendingReview={mutations.submitPendingReview}
-            onSubmitProperties={mutations.submitProperties}
-            onMutateStringItem={mutations.mutateStringItem}
-            aiReviewRunning={aiReviewRunning}
-            onRunAiReview={() => void handleRunAiReview()}
-            refreshing={refreshingPr}
-            onRefreshPr={() => void handleRefreshPr()}
-          />
-        </div>
+        <ResizablePanelGroup orientation="horizontal" className="flex-1 min-h-0">
+          <ResizablePanel defaultSize="37%" minSize="15%" maxSize="50%">
+            <InboxPanel
+              inbox={inbox}
+              inboxLoading={inboxLoading}
+              selectedId={selectedId}
+              filters={filters}
+              activePreset={activePreset}
+              repoOptions={repoOptions}
+              authorOptions={authorOptions}
+              onSelectPullRequest={setSelectedId}
+              onPatchFilters={patchFilters}
+              onClearFilters={clearFilters}
+              onApplyPreset={applyPreset}
+            />
+          </ResizablePanel>
+          <ResizableHandle />
+          <ResizablePanel defaultSize="63%">
+            <DetailPanel
+              selectedId={selectedId}
+              selectedListItem={selectedListItem}
+              detail={detail}
+              detailLoading={detailLoading}
+              detailError={detailError}
+              writing={mutations.writing}
+              form={mutations.form}
+              setFormField={mutations.setFormField}
+              onSubmitComment={mutations.submitComment}
+              onSubmitQuickReview={mutations.submitQuickReview}
+              onSubmitPendingReview={mutations.submitPendingReview}
+              onSubmitProperties={mutations.submitProperties}
+              onMutateStringItem={mutations.mutateStringItem}
+              aiReviewRunning={aiReviewRunning}
+              onRunAiReview={() => void handleRunAiReview()}
+              refreshing={refreshingPr}
+              onRefreshPr={() => void handleRefreshPr()}
+            />
+          </ResizablePanel>
+        </ResizablePanelGroup>
 
         <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 

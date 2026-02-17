@@ -1,6 +1,7 @@
 import { writeActionLog } from "@/lib/action-log";
 import { getCachedResult, setCachedResult } from "@/lib/ai-cache";
-import { runCodexJson } from "@/lib/codex-client";
+import { safeRunCodexJson } from "@/lib/safe-codex";
+import { riskAssessmentSchema, validateAiResponse } from "@/lib/ai-validators";
 import { buildPrContext, formatPrContextForCodex } from "@/lib/github-diff";
 import { getViewerLogin } from "@/lib/github";
 import { fail, ok } from "@/lib/http";
@@ -98,7 +99,7 @@ export async function POST(
 
     const contextDoc = formatPrContextForCodex(diffCtx);
 
-    const result = await runCodexJson<RiskAssessment>({
+    const result = await safeRunCodexJson<RiskAssessment>({
       prompt:
         "Analyze the pull request diff for potential risks. Evaluate each of these risk categories: " +
         "security (auth, crypto, permissions, env files), " +
@@ -115,7 +116,8 @@ export async function POST(
       contextFilename: "pr-context.md",
       model: userSettings.ai.model || undefined,
       timeout: userSettings.ai.timeoutMs,
-    });
+      validate: (data) => validateAiResponse(riskAssessmentSchema, data, "Risk Assessment"),
+    }, { feature: "ai_risk_assessment" });
 
     await setCachedResult("ai_risk_assessment", result, {
       pullRequestId: id,

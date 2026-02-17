@@ -1,6 +1,7 @@
 import { writeActionLog } from "@/lib/action-log";
 import { getCachedResult, setCachedResult } from "@/lib/ai-cache";
-import { runCodexJson } from "@/lib/codex-client";
+import { safeRunCodexJson } from "@/lib/safe-codex";
+import { aiSummarySchema, validateAiResponse } from "@/lib/ai-validators";
 import { buildPrContext, formatPrContextForCodex } from "@/lib/github-diff";
 import { getViewerLogin } from "@/lib/github";
 import { fail, ok } from "@/lib/http";
@@ -93,7 +94,7 @@ export async function POST(
 
     const contextDoc = formatPrContextForCodex(diffCtx);
 
-    const result = await runCodexJson<AiSummary>({
+    const result = await safeRunCodexJson<AiSummary>({
       prompt:
         "Analyze the pull request context provided and generate a concise summary. " +
         "Return a JSON object with: summary (2-3 sentences describing what this PR does), " +
@@ -104,7 +105,8 @@ export async function POST(
       contextFilename: "pr-context.md",
       model: userSettings.ai.model || undefined,
       timeout: userSettings.ai.timeoutMs,
-    });
+      validate: (data) => validateAiResponse(aiSummarySchema, data, "AI Summary"),
+    }, { feature: "ai_summary" });
 
     await setCachedResult("ai_summary", result, {
       pullRequestId: id,

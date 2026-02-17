@@ -94,14 +94,22 @@ export function DetailAiSummary({ pullRequestId, initialSummary }: DetailAiSumma
 
   if (!summary) return null;
 
-  const badge = changeTypeBadge(summary.changeType);
+  const badge = changeTypeBadge(summary.changeType ?? "other");
+  const keyChanges = Array.isArray(summary.keyChanges) ? summary.keyChanges : [];
 
   return (
     <div className="rounded-md border border-border bg-muted/20">
-      <button
-        type="button"
-        className="flex items-center justify-between w-full px-3 py-2 text-left"
+      <div
+        role="button"
+        tabIndex={0}
+        className="flex items-center justify-between w-full px-3 py-2 text-left cursor-pointer"
         onClick={() => setExpanded(!expanded)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setExpanded(!expanded);
+          }
+        }}
       >
         <div className="flex items-center gap-2">
           {expanded ? (
@@ -127,21 +135,21 @@ export function DetailAiSummary({ pullRequestId, initialSummary }: DetailAiSumma
         >
           <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />
         </Button>
-      </button>
+      </div>
 
       {expanded && (
         <div className="px-3 pb-3 space-y-2">
           <p className="text-xs text-foreground leading-relaxed">
-            {summary.summary}
+            {summary.summary ?? "No summary available."}
           </p>
 
-          {summary.keyChanges.length > 0 && (
+          {keyChanges.length > 0 && (
             <div className="space-y-1">
               <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
                 Key Changes
               </p>
               <div className="space-y-0.5">
-                {summary.keyChanges.slice(0, 8).map((change) => (
+                {keyChanges.slice(0, 8).map((change) => (
                   <div
                     key={change.file}
                     className="flex items-start gap-1.5 text-[11px]"

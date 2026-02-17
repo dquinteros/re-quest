@@ -141,7 +141,7 @@ export function DetailPanel({
     <article
       id={TRIAGE_CONTROL_IDS.detailPanel}
       data-control-id={TRIAGE_CONTROL_IDS.detailPanel}
-      className="flex-1 flex flex-col min-h-0"
+      className="h-full flex flex-col min-h-0"
       tabIndex={-1}
     >
       <ScrollArea className="flex-1">

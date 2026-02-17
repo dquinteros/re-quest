@@ -3,9 +3,11 @@
 import { useState, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { signOut } from "next-auth/react";
 import { Bot, Loader2, RefreshCw, BarChart3, AlertTriangle, Users, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { AiFeatureBoundary } from "@/components/ai-feature-boundary";
 import { AppNav } from "@/components/app-nav";
 import { useTheme, type Theme } from "@/hooks/use-theme";
 import { requestJson } from "@/lib/request";
@@ -64,6 +66,13 @@ export function InsightsPage({ viewerLabel }: InsightsPageProps) {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSignOut = useCallback(async () => {
+    setSigningOut(true);
+    await signOut({ callbackUrl: "/" });
+  }, []);
 
   const fetchDigest = useCallback(async () => {
     setLoading(true);
@@ -77,6 +86,19 @@ export function InsightsPage({ viewerLabel }: InsightsPageProps) {
       setLoading(false);
     }
   }, []);
+
+  const handleRefresh = useCallback(async () => {
+    setSyncing(true);
+    setError(null);
+    try {
+      await requestJson("/api/sync/refresh", { method: "POST" });
+      await fetchDigest();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to sync from GitHub");
+    } finally {
+      setSyncing(false);
+    }
+  }, [fetchDigest]);
 
   useEffect(() => {
     void fetchDigest();
@@ -100,46 +122,77 @@ export function InsightsPage({ viewerLabel }: InsightsPageProps) {
   const metrics = data?.metrics;
 
   return (
-    <>
+    <div className="flex flex-col h-screen bg-background text-foreground">
       <AppNav
         viewerLabel={viewerLabel}
         themeLabel={theme === "dark" ? "Light mode" : "Dark mode"}
-        signingOut={false}
+        signingOut={signingOut}
         authenticated
         onToggleTheme={toggleTheme}
+        onSignOut={handleSignOut}
       />
-      <main className="min-h-[calc(100vh-3rem)] bg-background">
-        <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
+      <main className="flex-1 overflow-auto">
+        <div className="max-w-5xl mx-auto px-4 py-6 space-y-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">Team Insights</h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                AI-powered analysis of your PR activity and team health.
-              </p>
-            </div>
-            <Button
-              onClick={() => void generateDigest()}
-              disabled={generating}
-              className="gap-2"
-            >
-              {generating ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Bot className="h-4 w-4" />
+            <div className="flex items-center gap-3">
+              <BarChart3 className="h-6 w-6 text-muted-foreground" />
+              <div>
+                <h1 className="text-lg font-bold tracking-tight">
+                  Team Insights
+                </h1>
+                <p className="text-xs text-muted-foreground">
+                  AI-powered analysis of your PR activity and team health
+                </p>
+              </div>
+              {metrics && (
+                <Badge variant="secondary" className="ml-2">
+                  {metrics.totalOpenPrs}{" "}
+                  {metrics.totalOpenPrs === 1 ? "PR" : "PRs"}
+                </Badge>
               )}
-              {generating ? "Generating..." : "Generate Digest"}
-            </Button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs gap-1.5"
+                onClick={() => void handleRefresh()}
+                disabled={syncing}
+              >
+                {syncing ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5" />
+                )}
+                {syncing ? "Syncing..." : "Refresh"}
+              </Button>
+              <Button
+                size="sm"
+                className="h-8 text-xs gap-1.5"
+                onClick={() => void generateDigest()}
+                disabled={generating}
+              >
+                {generating ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Bot className="h-3.5 w-3.5" />
+                )}
+                {generating ? "Generating..." : "Generate Digest"}
+              </Button>
+            </div>
           </div>
 
           {error && (
-            <div className="rounded-md border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-400">
+            <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
               {error}
             </div>
           )}
 
           {loading && !data && (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span className="text-sm">Loading team insights...</span>
             </div>
           )}
 
@@ -178,7 +231,7 @@ export function InsightsPage({ viewerLabel }: InsightsPageProps) {
                     <Users className="h-4 w-4 text-muted-foreground" />
                     <h3 className="text-sm font-medium">Reviewer Workload</h3>
                   </div>
-                  {metrics.reviewerWorkload.length > 0 ? (
+                  {Array.isArray(metrics.reviewerWorkload) && metrics.reviewerWorkload.length > 0 ? (
                     <div className="space-y-2">
                       {metrics.reviewerWorkload.slice(0, 8).map((r) => (
                         <div key={r.login} className="flex items-center justify-between">
@@ -205,11 +258,11 @@ export function InsightsPage({ viewerLabel }: InsightsPageProps) {
                   <div className="flex items-center gap-2 mb-3">
                     <Clock className="h-4 w-4 text-muted-foreground" />
                     <h3 className="text-sm font-medium">Stale PRs</h3>
-                    <Badge variant="secondary" className="text-[10px]">
-                      {metrics.stalePrs.length}
-                    </Badge>
+                  <Badge variant="secondary" className="text-[10px]">
+                    {Array.isArray(metrics.stalePrs) ? metrics.stalePrs.length : 0}
+                  </Badge>
                   </div>
-                  {metrics.stalePrs.length > 0 ? (
+                  {Array.isArray(metrics.stalePrs) && metrics.stalePrs.length > 0 ? (
                     <div className="space-y-1.5">
                       {metrics.stalePrs.slice(0, 5).map((pr) => (
                         <div key={`${pr.repository}-${pr.number}`} className="text-xs">
@@ -228,40 +281,52 @@ export function InsightsPage({ viewerLabel }: InsightsPageProps) {
               </div>
 
               {/* AI Digest */}
-              <div className="rounded-lg border border-border p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <Bot className="h-5 w-5 text-muted-foreground" />
-                  <h3 className="text-lg font-semibold">AI Digest</h3>
-                  {data?.cached && (
-                    <Badge variant="secondary" className="text-[10px]">Cached</Badge>
+              <AiFeatureBoundary featureLabel="AI Digest">
+                <div className="rounded-lg border border-border p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Bot className="h-5 w-5 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold">AI Digest</h3>
+                    {data?.cached && (
+                      <Badge variant="secondary" className="text-[10px]">Cached</Badge>
+                    )}
+                  </div>
+
+                  {generating && (
+                    <div className="flex items-center gap-2 py-8 justify-center text-muted-foreground">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <span className="text-sm">Analyzing team metrics with AI...</span>
+                    </div>
                   )}
+
+                  {!generating && data?.markdown ? (
+                    <div className="gh-markdown max-w-none">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {typeof data.markdown === "string" ? data.markdown : "Invalid digest content."}
+                      </ReactMarkdown>
+                    </div>
+                  ) : !generating ? (
+                    <div className="text-center py-8">
+                      <p className="text-sm text-muted-foreground mb-3">
+                        No AI digest generated yet. Click the button above to analyze your team metrics.
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
-
-                {generating && (
-                  <div className="flex items-center gap-2 py-8 justify-center text-muted-foreground">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <span className="text-sm">Analyzing team metrics with AI...</span>
-                  </div>
-                )}
-
-                {!generating && data?.markdown ? (
-                  <div className="gh-markdown max-w-none">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {data.markdown}
-                    </ReactMarkdown>
-                  </div>
-                ) : !generating ? (
-                  <div className="text-center py-8">
-                    <p className="text-sm text-muted-foreground mb-3">
-                      No AI digest generated yet. Click the button above to analyze your team metrics.
-                    </p>
-                  </div>
-                ) : null}
-              </div>
+              </AiFeatureBoundary>
             </>
+          )}
+          {data && !metrics && !loading && (
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+              <BarChart3 className="h-10 w-10 mb-3 opacity-40" />
+              <p className="text-sm font-medium">No insights data available</p>
+              <p className="text-xs mt-1">
+                Click Refresh to load your team metrics, or Generate Digest for
+                an AI-powered summary.
+              </p>
+            </div>
           )}
         </div>
       </main>
-    </>
+    </div>
   );
 }

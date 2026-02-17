@@ -53,3 +53,23 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
     return undefined as T;
   }
 }
+
+/**
+ * Like `requestJson` but never throws.
+ * Returns `{ data, error }` so components can handle failures without
+ * try/catch boilerplate.
+ */
+export async function safeRequestJson<T>(
+  path: string,
+  init?: RequestInit,
+): Promise<{ data: T | null; error: string | null }> {
+  try {
+    const data = await requestJson<T>(path, init);
+    return { data, error: null };
+  } catch (err) {
+    return {
+      data: null,
+      error: err instanceof Error ? err.message : "Unknown error",
+    };
+  }
+}

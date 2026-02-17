@@ -1,6 +1,7 @@
 import { writeActionLog } from "@/lib/action-log";
 import { getCachedResult, setCachedResult } from "@/lib/ai-cache";
-import { runCodexJson } from "@/lib/codex-client";
+import { safeRunCodexJson } from "@/lib/safe-codex";
+import { suggestLabelsResultSchema, validateAiResponse } from "@/lib/ai-validators";
 import { buildPrContext, formatPrContextForCodex } from "@/lib/github-diff";
 import { getViewerLogin } from "@/lib/github";
 import { fail, ok } from "@/lib/http";
@@ -115,7 +116,7 @@ export async function POST(
         : "(none)",
     ].join("\n");
 
-    const result = await runCodexJson<SuggestLabelsResult>({
+    const result = await safeRunCodexJson<SuggestLabelsResult>({
       prompt:
         "Analyze the pull request and suggest which labels should be applied. " +
         "ONLY suggest labels that exist in the 'Available Labels in Repository' list. " +
@@ -127,7 +128,8 @@ export async function POST(
       contextFilename: "pr-labels-context.md",
       model: userSettings.ai.model || undefined,
       timeout: userSettings.ai.timeoutMs,
-    });
+      validate: (data) => validateAiResponse(suggestLabelsResultSchema, data, "Label Suggestions"),
+    }, { feature: "ai_label_suggest" });
 
     await setCachedResult("ai_label_suggest", result, {
       pullRequestId: id,

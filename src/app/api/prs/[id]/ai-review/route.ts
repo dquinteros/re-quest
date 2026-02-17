@@ -51,24 +51,53 @@ export async function POST(
       payload: { prUrl },
     });
 
+    const AI_REVIEW_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+
     const child = spawn("npx", ["ai-pr-reviewer", prUrl], {
       detached: true,
       stdio: "ignore",
       env: { ...process.env },
     });
 
+    let childSettled = false;
+
+    const reviewTimer = setTimeout(() => {
+      if (!childSettled) {
+        childSettled = true;
+        try {
+          child.kill("SIGTERM");
+          setTimeout(() => {
+            try { child.kill("SIGKILL"); } catch { /* already dead */ }
+          }, 5000);
+        } catch {
+          // Process may already be dead
+        }
+        updateActionLogStatus(logId, "FAILED", "AI review timed out").catch(() => {
+          /* best-effort update */
+        });
+      }
+    }, AI_REVIEW_TIMEOUT_MS);
+
     child.on("close", (code) => {
-      const status = code === 0 ? "SUCCESS" : "FAILED";
-      const errorMsg = code !== 0 ? `Process exited with code ${code}` : undefined;
-      updateActionLogStatus(logId, status, errorMsg).catch(() => {
-        /* best-effort update */
-      });
+      if (!childSettled) {
+        childSettled = true;
+        clearTimeout(reviewTimer);
+        const status = code === 0 ? "SUCCESS" : "FAILED";
+        const errorMsg = code !== 0 ? `Process exited with code ${code}` : undefined;
+        updateActionLogStatus(logId, status, errorMsg).catch(() => {
+          /* best-effort update */
+        });
+      }
     });
 
     child.on("error", (err) => {
-      updateActionLogStatus(logId, "FAILED", err.message).catch(() => {
-        /* best-effort update */
-      });
+      if (!childSettled) {
+        childSettled = true;
+        clearTimeout(reviewTimer);
+        updateActionLogStatus(logId, "FAILED", err.message).catch(() => {
+          /* best-effort update */
+        });
+      }
     });
 
     child.unref();

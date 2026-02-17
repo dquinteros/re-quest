@@ -4,8 +4,9 @@ import { useMemo } from "react";
 import { ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { MultiSelectFilter } from "@/components/multi-select-filter";
+import { SingleSelectFilter } from "@/components/single-select-filter";
+import type { SingleSelectOption } from "@/components/single-select-filter";
 import {
   CI_STATE_OPTIONS,
   DEFAULT_FILTERS,
@@ -16,6 +17,33 @@ import {
 } from "./contracts";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+
+const REVIEW_STATE_SELECT_OPTIONS: SingleSelectOption[] = REVIEW_STATE_OPTIONS.map(
+  (value) => ({
+    value,
+    label: value ? value.replace(/_/g, " ").toLowerCase() : "Any review",
+  }),
+);
+
+const CI_STATE_SELECT_OPTIONS: SingleSelectOption[] = CI_STATE_OPTIONS.map(
+  (value) => ({
+    value,
+    label: value ? `CI: ${value.toLowerCase()}` : "Any CI",
+  }),
+);
+
+const DRAFT_SELECT_OPTIONS: SingleSelectOption[] = [
+  { value: "all", label: "All drafts" },
+  { value: "false", label: "Non-draft" },
+  { value: "true", label: "Draft only" },
+];
+
+const SORT_SELECT_OPTIONS: SingleSelectOption[] = SORT_OPTIONS.map(
+  (option) => ({
+    value: option.value,
+    label: option.label,
+  }),
+);
 
 function getActiveFilterCount(filters: Filters): number {
   let count = 0;
@@ -89,54 +117,38 @@ export function InboxFilters({ filters, repoOptions, authorOptions, onPatchFilte
             />
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <Select
-              id={TRIAGE_CONTROL_IDS.filterReviewState}
+            <SingleSelectFilter
+              label="Review state"
+              options={REVIEW_STATE_SELECT_OPTIONS}
               value={filters.reviewState}
-              onChange={(e) => onPatchFilters({ reviewState: e.target.value as Filters["reviewState"] })}
-              className="h-7 text-[11px]"
-            >
-              {REVIEW_STATE_OPTIONS.map((value) => (
-                <option key={value || "all"} value={value}>
-                  {value ? value.replace(/_/g, " ").toLowerCase() : "Any review"}
-                </option>
-              ))}
-            </Select>
-            <Select
-              id={TRIAGE_CONTROL_IDS.filterCiState}
+              onValueChange={(v) => onPatchFilters({ reviewState: v as Filters["reviewState"] })}
+              searchable={false}
+            />
+            <SingleSelectFilter
+              label="CI state"
+              options={CI_STATE_SELECT_OPTIONS}
               value={filters.ciState}
-              onChange={(e) => onPatchFilters({ ciState: e.target.value as Filters["ciState"] })}
-              className="h-7 text-[11px]"
-            >
-              {CI_STATE_OPTIONS.map((value) => (
-                <option key={value || "all"} value={value}>
-                  {value ? `CI: ${value.toLowerCase()}` : "Any CI"}
-                </option>
-              ))}
-            </Select>
+              onValueChange={(v) => onPatchFilters({ ciState: v as Filters["ciState"] })}
+              searchable={false}
+            />
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <Select
-              id={TRIAGE_CONTROL_IDS.filterDraft}
+            <SingleSelectFilter
+              label="Draft"
+              options={DRAFT_SELECT_OPTIONS}
               value={filters.draft}
-              onChange={(e) => onPatchFilters({ draft: e.target.value as Filters["draft"] })}
-              className="h-7 text-[11px]"
-            >
-              <option value="all">All drafts</option>
-              <option value="false">Non-draft</option>
-              <option value="true">Draft only</option>
-            </Select>
-            <Select
-              id={TRIAGE_CONTROL_IDS.filterSort}
+              onValueChange={(v) => onPatchFilters({ draft: v as Filters["draft"] })}
+              defaultValue="all"
+              searchable={false}
+            />
+            <SingleSelectFilter
+              label="Sort"
+              options={SORT_SELECT_OPTIONS}
               value={filters.sort}
-              onChange={(e) => onPatchFilters({ sort: e.target.value as Filters["sort"] })}
-              className="h-7 text-[11px]"
-            >
-              {SORT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </Select>
+              onValueChange={(v) => onPatchFilters({ sort: v as Filters["sort"] })}
+              defaultValue={DEFAULT_FILTERS.sort}
+              searchable={false}
+            />
           </div>
           {activeCount > 0 && (
             <Button

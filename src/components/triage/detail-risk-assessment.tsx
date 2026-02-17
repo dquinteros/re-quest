@@ -112,7 +112,8 @@ export function DetailRiskAssessment({ pullRequestId, initialAssessment }: Detai
 
   if (!assessment) return null;
 
-  const badge = riskLevelBadge(assessment.riskLevel);
+  const badge = riskLevelBadge(assessment.riskLevel ?? "low");
+  const riskFactors = Array.isArray(assessment.riskFactors) ? assessment.riskFactors : [];
 
   return (
     <div className="rounded-md border border-border bg-muted/20">
@@ -150,12 +151,12 @@ export function DetailRiskAssessment({ pullRequestId, initialAssessment }: Detai
       {expanded && (
         <div className="px-3 pb-3 space-y-2">
           <p className="text-xs text-foreground leading-relaxed">
-            {assessment.explanation}
+            {assessment.explanation ?? "No explanation available."}
           </p>
 
-          {assessment.riskFactors.length > 0 && (
+          {riskFactors.length > 0 && (
             <div className="space-y-1">
-              {assessment.riskFactors.map((factor, i) => (
+              {riskFactors.map((factor, i) => (
                 <div
                   key={`${factor.category}-${i}`}
                   className="flex items-start gap-1.5 text-[11px] rounded-md bg-background/50 px-2 py-1.5"
@@ -175,7 +176,7 @@ export function DetailRiskAssessment({ pullRequestId, initialAssessment }: Detai
             </div>
           )}
 
-          {assessment.riskFactors.length === 0 && (
+          {riskFactors.length === 0 && (
             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
               <AlertTriangle className="h-3 w-3" />
               <span>No specific risk factors identified.</span>

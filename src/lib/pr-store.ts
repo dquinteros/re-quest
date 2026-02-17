@@ -193,39 +193,25 @@ export async function listInboxPullRequests(
 
   const notBot: Prisma.PullRequestWhereInput = { NOT: { authorLogin: { endsWith: "[bot]" } } };
 
-  const [needsReview, changesRequestedFollowUp, failingCi, hasConflicts, latestSync, allBranchRefs] =
+  const baseWhere: Prisma.PullRequestWhereInput = {
+    ...ownershipFilter(scope),
+    ...notBot,
+    attentionState: { needsAttention: true },
+  };
+
+  const [needsReview, changesRequestedFollowUp, failingCi, hasConflicts, latestSync, allBranchRefs, allRepoNames, allAuthorLogins] =
     await Promise.all([
       prisma.pullRequest.count({
-        where: {
-          ...ownershipFilter(scope),
-          ...notBot,
-          attentionState: { needsAttention: true },
-          reviewState: "REVIEW_REQUESTED",
-        },
+        where: { ...baseWhere, reviewState: "REVIEW_REQUESTED" },
       }),
       prisma.pullRequest.count({
-        where: {
-          ...ownershipFilter(scope),
-          ...notBot,
-          attentionState: { needsAttention: true },
-          reviewState: "CHANGES_REQUESTED",
-        },
+        where: { ...baseWhere, reviewState: "CHANGES_REQUESTED" },
       }),
       prisma.pullRequest.count({
-        where: {
-          ...ownershipFilter(scope),
-          ...notBot,
-          attentionState: { needsAttention: true },
-          ciState: "FAILURE",
-        },
+        where: { ...baseWhere, ciState: "FAILURE" },
       }),
       prisma.pullRequest.count({
-        where: {
-          ...ownershipFilter(scope),
-          ...notBot,
-          attentionState: { needsAttention: true },
-          mergeable: false,
-        },
+        where: { ...baseWhere, mergeable: false },
       }),
       prisma.syncRun.findFirst({
         where: {
@@ -235,9 +221,7 @@ export async function listInboxPullRequests(
       }),
       prisma.pullRequest.findMany({
         where: {
-          ...ownershipFilter(scope),
-          ...notBot,
-          attentionState: { needsAttention: true },
+          ...baseWhere,
           headRef: { not: null },
           baseRef: { not: null },
         },
@@ -246,6 +230,16 @@ export async function listInboxPullRequests(
           baseRef: true,
           repository: { select: { fullName: true } },
         },
+      }),
+      prisma.pullRequest.findMany({
+        where: baseWhere,
+        select: { repository: { select: { fullName: true } } },
+        distinct: ["repositoryId"],
+      }),
+      prisma.pullRequest.findMany({
+        where: baseWhere,
+        select: { authorLogin: true },
+        distinct: ["authorLogin"],
       }),
     ]);
 
@@ -264,6 +258,8 @@ export async function listInboxPullRequests(
       hasConflicts,
       flowViolations,
     },
+    availableRepos: allRepoNames.map((r) => r.repository.fullName).sort(),
+    availableAuthors: allAuthorLogins.map((a) => a.authorLogin).sort(),
     syncedAt: latestSync?.finishedAt?.toISOString() ?? null,
   };
 }

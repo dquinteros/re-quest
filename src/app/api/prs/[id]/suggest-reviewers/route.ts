@@ -1,6 +1,7 @@
 import { writeActionLog } from "@/lib/action-log";
 import { getCachedResult, setCachedResult } from "@/lib/ai-cache";
-import { runCodexJson } from "@/lib/codex-client";
+import { safeRunCodexJson } from "@/lib/safe-codex";
+import { suggestReviewersResultSchema, validateAiResponse } from "@/lib/ai-validators";
 import { fetchPrChangedFiles } from "@/lib/github-diff";
 import { getViewerLogin } from "@/lib/github";
 import { fail, ok } from "@/lib/http";
@@ -205,7 +206,7 @@ export async function POST(
       contextDoc,
     ].join("\n");
 
-    const result = await runCodexJson<SuggestReviewersResult>({
+    const result = await safeRunCodexJson<SuggestReviewersResult>({
       prompt:
         "Based on the code ownership, reviewer workload, and collaborator data, suggest the best 3 reviewers for this pull request. " +
         "Do NOT suggest the PR author. " +
@@ -217,7 +218,8 @@ export async function POST(
       contextFilename: "reviewer-context.md",
       model: userSettings.ai.model || undefined,
       timeout: userSettings.ai.timeoutMs,
-    });
+      validate: (data) => validateAiResponse(suggestReviewersResultSchema, data, "Reviewer Suggestions"),
+    }, { feature: "ai_reviewer_suggest" });
 
     await setCachedResult("ai_reviewer_suggest", result, {
       pullRequestId: id,

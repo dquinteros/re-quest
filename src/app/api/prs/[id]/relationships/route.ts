@@ -1,6 +1,7 @@
 import { writeActionLog } from "@/lib/action-log";
 import { getCachedResult, setCachedResult } from "@/lib/ai-cache";
-import { runCodexJson } from "@/lib/codex-client";
+import { safeRunCodexJson } from "@/lib/safe-codex";
+import { relationshipsResultSchema, validateAiResponse } from "@/lib/ai-validators";
 import { fetchPrChangedFiles } from "@/lib/github-diff";
 import { getViewerLogin } from "@/lib/github";
 import { fail, ok } from "@/lib/http";
@@ -166,7 +167,7 @@ export async function POST(
         : ["(no file overlaps detected)"]),
     ].join("\n");
 
-    const result = await runCodexJson<RelationshipsResult>({
+    const result = await safeRunCodexJson<RelationshipsResult>({
       prompt:
         `Analyze the relationships between these open pull requests, focusing on PR #${prContext.number}. ` +
         "Identify: " +
@@ -181,7 +182,8 @@ export async function POST(
       contextFilename: "pr-relationships.md",
       model: userSettings.ai.model || undefined,
       timeout: userSettings.ai.timeoutMs,
-    });
+      validate: (data) => validateAiResponse(relationshipsResultSchema, data, "PR Relationships"),
+    }, { feature: "ai_dependency_detection" });
 
     await setCachedResult("ai_dependency_detection", result, {
       pullRequestId: id,

@@ -185,6 +185,7 @@ model PullRequestAttention {
   scoreBreakdown  Json?
   riskLevel       String?
   riskFactors     Json?
+  viewerParticipated Boolean @default(false)
   lastSyncedAt    DateTime
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt

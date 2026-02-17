@@ -53,6 +53,7 @@ export interface PullRequestListItem {
   flowPhase: string | null;
   flowViolation: FlowViolationInfo | null;
   riskLevel?: string | null;
+  viewerParticipated: boolean;
 }
 
 export interface PullRequestDetail extends PullRequestListItem {
@@ -73,6 +74,8 @@ export interface InboxResponse {
     hasConflicts: number;
     flowViolations: number;
   };
+  availableRepos: string[];
+  availableAuthors: string[];
   syncedAt: string | null;
 }
 

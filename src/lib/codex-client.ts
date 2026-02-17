@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const DEFAULT_TIMEOUT_MS = 120_000;
+const DEFAULT_MAX_RETRIES = 2;
+const RETRY_BASE_DELAY_MS = 2_000;
 
 export interface CodexResult<T> {
   raw: string;
@@ -26,6 +28,8 @@ export interface CodexExecOptions {
   contextFilename?: string;
   /** Model name to pass via --model flag (e.g. "o4-mini", "o3") */
   model?: string;
+  /** Max retry attempts on transient failures (default 2, total attempts = maxRetries + 1) */
+  maxRetries?: number;
 }
 
 /**
@@ -91,10 +95,11 @@ export async function runCodex<T = string>(
 
     args.push(prompt);
 
-    const result = await spawnCodex(codexBin, args, {
+    const maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
+    const result = await spawnCodexWithRetry(codexBin, args, {
       timeoutMs,
       cwd: options.cwd,
-    });
+    }, maxRetries);
 
     let parsed: T | null = null;
     if (options.outputSchema && result.stdout.trim()) {
@@ -133,11 +138,73 @@ export async function runCodex<T = string>(
   }
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Determines whether a spawn failure is transient and worth retrying.
+ * Spawn errors (binary not found) are NOT retried.
+ * Non-zero exit codes and timeouts ARE retried.
+ */
+function isTransientSpawnError(error: unknown): boolean {
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    if (msg.includes("failed to start codex") || msg.includes("enoent")) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Wraps spawnCodex with retry logic using exponential backoff.
+ * Only retries on transient errors (non-zero exit code, timeout).
+ * Does not retry on spawn failures (binary not found).
+ */
+async function spawnCodexWithRetry(
+  bin: string,
+  args: string[],
+  options: { timeoutMs: number; cwd?: string },
+  maxRetries: number,
+): Promise<SpawnResult> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await spawnCodex(bin, args, options);
+
+      // Non-zero exit code is retryable (except on last attempt)
+      if (result.exitCode !== 0 && attempt < maxRetries) {
+        const delay = RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
+        await sleep(delay);
+        continue;
+      }
+
+      return result;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      if (!isTransientSpawnError(error) || attempt >= maxRetries) {
+        throw lastError;
+      }
+
+      const delay = RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
+      await sleep(delay);
+    }
+  }
+
+  throw lastError ?? new Error("Codex retry exhausted");
+}
+
 interface SpawnResult {
   stdout: string;
   stderr: string;
   exitCode: number;
 }
+
+/** Max bytes to buffer from stdout/stderr to prevent unbounded memory usage. */
+const MAX_BUFFER_BYTES = 10 * 1024 * 1024; // 10 MB
 
 function spawnCodex(
   bin: string,
@@ -145,37 +212,70 @@ function spawnCodex(
   options: { timeoutMs: number; cwd?: string },
 ): Promise<SpawnResult> {
   return new Promise((resolve, reject) => {
-    const child = spawn(bin, args, {
-      cwd: options.cwd,
-      env: { ...process.env },
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    let child: ReturnType<typeof spawn>;
+    try {
+      child = spawn(bin, args, {
+        cwd: options.cwd,
+        env: { ...process.env },
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+    } catch (err) {
+      reject(
+        new Error(
+          `Failed to start codex: ${err instanceof Error ? err.message : String(err)}`,
+        ),
+      );
+      return;
+    }
 
     let stdout = "";
     let stderr = "";
+    let stdoutBytes = 0;
+    let stderrBytes = 0;
     let settled = false;
+    let killTimer: ReturnType<typeof setTimeout> | null = null;
+
+    function settle() {
+      clearTimeout(timer);
+      if (killTimer) clearTimeout(killTimer);
+    }
 
     const timer = setTimeout(() => {
       if (!settled) {
         settled = true;
         child.kill("SIGTERM");
-        setTimeout(() => child.kill("SIGKILL"), 5000);
+        killTimer = setTimeout(() => {
+          try {
+            child.kill("SIGKILL");
+          } catch {
+            // Process may already be dead
+          }
+        }, 5000);
+        settle();
         resolve({ stdout, stderr: stderr + "\n[codex timeout]", exitCode: 124 });
       }
     }, options.timeoutMs);
 
     child.stdout?.on("data", (chunk: Buffer) => {
-      stdout += chunk.toString();
+      if (stdoutBytes < MAX_BUFFER_BYTES) {
+        const text = chunk.toString();
+        stdout += text;
+        stdoutBytes += chunk.length;
+      }
     });
 
     child.stderr?.on("data", (chunk: Buffer) => {
-      stderr += chunk.toString();
+      if (stderrBytes < MAX_BUFFER_BYTES) {
+        const text = chunk.toString();
+        stderr += text;
+        stderrBytes += chunk.length;
+      }
     });
 
     child.on("close", (code) => {
       if (!settled) {
         settled = true;
-        clearTimeout(timer);
+        settle();
         resolve({ stdout, stderr, exitCode: code ?? 1 });
       }
     });
@@ -183,7 +283,7 @@ function spawnCodex(
     child.on("error", (err) => {
       if (!settled) {
         settled = true;
-        clearTimeout(timer);
+        settle();
         reject(new Error(`Failed to start codex: ${err.message}`));
       }
     });
@@ -193,9 +293,18 @@ function spawnCodex(
 /**
  * Convenience: run codex expecting a JSON result matching the given schema.
  * Returns the parsed object or throws.
+ *
+ * When a `validate` callback is provided, the parsed output is passed through
+ * it before being returned.  This enables runtime shape validation (e.g. with
+ * Zod) so that malformed AI output is caught here instead of crashing the UI.
  */
 export async function runCodexJson<T>(
-  options: Omit<CodexExecOptions, "outputSchema"> & { outputSchema: string },
+  options: Omit<CodexExecOptions, "outputSchema"> & {
+    outputSchema: string;
+    /** Optional runtime validator.  Receives raw-parsed data, should return
+     *  validated T or throw with a descriptive message. */
+    validate?: (data: unknown) => T;
+  },
 ): Promise<T> {
   const result = await runCodex<T>(options);
 
@@ -205,6 +314,10 @@ export async function runCodexJson<T>(
 
   if (result.parsed === null) {
     throw new Error(`Codex returned unparseable output: ${result.raw.slice(0, 500)}`);
+  }
+
+  if (options.validate) {
+    return options.validate(result.parsed);
   }
 
   return result.parsed;

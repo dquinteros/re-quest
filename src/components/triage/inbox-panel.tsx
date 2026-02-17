@@ -38,7 +38,7 @@ export function InboxPanel({
     <aside
       id={TRIAGE_CONTROL_IDS.inboxPanel}
       data-control-id={TRIAGE_CONTROL_IDS.inboxPanel}
-      className="w-[340px] shrink-0 flex flex-col border-r border-border bg-background min-h-0"
+      className="h-full flex flex-col border-r border-border bg-background min-h-0"
     >
       {/* Header */}
       <div className="px-3 pt-3 pb-2 border-b border-border space-y-2.5">

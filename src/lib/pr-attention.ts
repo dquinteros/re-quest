@@ -23,6 +23,7 @@ export interface UpsertAttentionStateInput {
   body: string | null;
   viewerLogin: string | null;
   lastActivityByViewer?: boolean;
+  viewerParticipated?: boolean;
 }
 
 function mentionCount(text: string, login: string | null): number {
@@ -122,6 +123,7 @@ export async function upsertAttentionState(input: UpsertAttentionStateInput): Pr
       attentionReason: attention.attentionReason,
       urgencyScore: attention.urgencyScore,
       scoreBreakdown: attention.scoreBreakdown,
+      viewerParticipated: input.viewerParticipated ?? false,
       lastSyncedAt: now,
     },
     update: {
@@ -129,6 +131,7 @@ export async function upsertAttentionState(input: UpsertAttentionStateInput): Pr
       attentionReason: attention.attentionReason,
       urgencyScore: attention.urgencyScore,
       scoreBreakdown: attention.scoreBreakdown,
+      viewerParticipated: input.viewerParticipated ?? false,
       lastSyncedAt: now,
     },
   });

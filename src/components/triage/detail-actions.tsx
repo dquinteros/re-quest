@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/accordion";
 import { TRIAGE_CONTROL_IDS, type MutateTarget, type PendingReviewMode, type ReviewEvent } from "./contracts";
 import type { MutationFormState } from "@/hooks/use-pr-mutations";
+import { AiFeatureBoundary } from "@/components/ai-feature-boundary";
 import { AiLabelSuggestions } from "./ai-label-suggestions";
 import { AiReviewerSuggestions } from "./ai-reviewer-suggestions";
 
@@ -153,11 +154,13 @@ export function DetailActions({
                   </Button>
                 </div>
                 {pullRequestId && (
-                  <AiLabelSuggestions
-                    pullRequestId={pullRequestId}
-                    onApplyLabel={(label) => onMutateStringItem("labels", label, "POST")}
-                    disabled={writing}
-                  />
+                  <AiFeatureBoundary featureLabel="AI Label Suggestions">
+                    <AiLabelSuggestions
+                      pullRequestId={pullRequestId}
+                      onApplyLabel={(label) => onMutateStringItem("labels", label, "POST")}
+                      disabled={writing}
+                    />
+                  </AiFeatureBoundary>
                 )}
               </AccordionContent>
             </AccordionItem>
@@ -244,11 +247,13 @@ export function DetailActions({
                   </Button>
                 </div>
                 {pullRequestId && (
-                  <AiReviewerSuggestions
-                    pullRequestId={pullRequestId}
-                    onApplyReviewer={(login) => onMutateStringItem("reviewers", login, "POST")}
-                    disabled={writing}
-                  />
+                  <AiFeatureBoundary featureLabel="AI Reviewer Suggestions">
+                    <AiReviewerSuggestions
+                      pullRequestId={pullRequestId}
+                      onApplyReviewer={(login) => onMutateStringItem("reviewers", login, "POST")}
+                      disabled={writing}
+                    />
+                  </AiFeatureBoundary>
                 )}
               </AccordionContent>
             </AccordionItem>

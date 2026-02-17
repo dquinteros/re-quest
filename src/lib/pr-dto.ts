@@ -112,6 +112,7 @@ export function toPullRequestListItem(
     flowPhase,
     flowViolation,
     riskLevel: record.attentionState?.riskLevel ?? null,
+    viewerParticipated: record.attentionState?.viewerParticipated ?? false,
   };
 }
 

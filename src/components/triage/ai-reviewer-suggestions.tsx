@@ -83,7 +83,7 @@ export function AiReviewerSuggestions({
                     {s.score}/100
                   </span>
                 </div>
-                {s.reasons.length > 0 && (
+                {Array.isArray(s.reasons) && s.reasons.length > 0 && (
                   <p className="text-[10px] text-muted-foreground truncate" title={s.reasons.join("; ")}>
                     {s.reasons[0]}
                   </p>

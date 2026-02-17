@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Shield } from "lucide-react";
+import { AlertTriangle, MessageCircle, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PullRequestListItem } from "@/types/pr";
 import { inboxItemControlId } from "./contracts";
@@ -55,6 +55,14 @@ export function InboxItem({ item, isActive, onSelect }: InboxItemProps) {
           {item.repository}
         </span>
         <div className="flex items-center gap-1.5 shrink-0">
+          {item.viewerParticipated && (
+            <span
+              className="text-blue-500 dark:text-blue-400"
+              title="You reviewed or commented"
+            >
+              <MessageCircle className="h-3 w-3" />
+            </span>
+          )}
           {item.riskLevel && item.riskLevel !== "low" && (
             <span
               className={cn(

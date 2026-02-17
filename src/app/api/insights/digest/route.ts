@@ -1,6 +1,6 @@
 import { writeActionLog } from "@/lib/action-log";
 import { getCachedResult, setCachedResult } from "@/lib/ai-cache";
-import { runCodex } from "@/lib/codex-client";
+import { safeRunCodex } from "@/lib/safe-codex";
 import { fail, ok } from "@/lib/http";
 import {
   AuthenticationError,
@@ -172,7 +172,7 @@ export async function POST(request: Request) {
     const metrics = await gatherMetrics(sessionUser.id);
     const contextDoc = formatMetricsForCodex(metrics);
 
-    const result = await runCodex({
+    const result = await safeRunCodex({
       prompt:
         "Analyze this team's PR metrics and generate a concise weekly digest in markdown format. Include: " +
         "1. Executive Summary (2-3 sentences about overall health), " +
@@ -185,7 +185,7 @@ export async function POST(request: Request) {
       contextFilename: "team-metrics.md",
       model: userSettings.ai.model || undefined,
       timeout: userSettings.ai.timeoutMs,
-    });
+    }, { feature: "ai_digest" });
 
     const digestMarkdown = result.raw.trim() || "No digest generated.";
 

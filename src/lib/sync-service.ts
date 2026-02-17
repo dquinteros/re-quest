@@ -270,7 +270,7 @@ async function resolveReviewState(
   }
 }
 
-async function resolveLastActivityByViewer(
+async function resolveViewerActivity(
   octokit: Octokit,
   params: {
     owner: string;
@@ -279,12 +279,16 @@ async function resolveLastActivityByViewer(
     reviews: PullReview[];
     viewerLogin: string | null;
   },
-): Promise<boolean> {
+): Promise<{ lastActivityByViewer: boolean; viewerParticipated: boolean }> {
   if (!params.viewerLogin) {
-    return false;
+    return { lastActivityByViewer: false, viewerParticipated: false };
   }
 
   const viewer = params.viewerLogin.toLowerCase();
+
+  const viewerReviewed = params.reviews.some(
+    (r) => r.state !== "PENDING" && (r.user?.login ?? "").toLowerCase() === viewer,
+  );
 
   const latest = latestReview(params.reviews);
   let lastReviewTimestamp = 0;
@@ -296,6 +300,7 @@ async function resolveLastActivityByViewer(
 
   let lastCommentTimestamp = 0;
   let lastCommentByViewer = false;
+  let viewerCommented = false;
   try {
     const comments = await octokit.rest.issues.listComments({
       owner: params.owner,
@@ -303,8 +308,16 @@ async function resolveLastActivityByViewer(
       issue_number: params.pullNumber,
       sort: "created",
       direction: "desc",
-      per_page: 1,
+      per_page: 100,
     });
+
+    for (const comment of comments.data) {
+      const login = (comment.user?.login ?? "").toLowerCase();
+      if (login === viewer) {
+        viewerCommented = true;
+        break;
+      }
+    }
 
     const lastComment = comments.data[0];
     if (lastComment) {
@@ -315,15 +328,17 @@ async function resolveLastActivityByViewer(
     // If fetching comments fails, ignore and use review data only
   }
 
-  if (lastReviewTimestamp === 0 && lastCommentTimestamp === 0) {
-    return false;
+  let lastActivityByViewer = false;
+  if (lastReviewTimestamp > 0 || lastCommentTimestamp > 0) {
+    lastActivityByViewer = lastCommentTimestamp >= lastReviewTimestamp
+      ? lastCommentByViewer
+      : lastReviewByViewer;
   }
 
-  if (lastCommentTimestamp >= lastReviewTimestamp) {
-    return lastCommentByViewer;
-  }
-
-  return lastReviewByViewer;
+  return {
+    lastActivityByViewer,
+    viewerParticipated: viewerReviewed || viewerCommented,
+  };
 }
 
 async function resolveCiState(
@@ -708,7 +723,7 @@ export async function syncSinglePullRequest(params: {
     ref: pull.head.sha,
   });
 
-  const lastActivityByViewer = await resolveLastActivityByViewer(octokit, {
+  const { lastActivityByViewer, viewerParticipated } = await resolveViewerActivity(octokit, {
     owner,
     repo,
     pullNumber: pull.number,
@@ -815,6 +830,7 @@ export async function syncSinglePullRequest(params: {
     body: pull.body,
     viewerLogin,
     lastActivityByViewer,
+    viewerParticipated,
   });
 
   return pullRequest.id;
@@ -874,7 +890,7 @@ async function syncRepository(
         ref: pull.head.sha,
       });
 
-      const lastActivityByViewer = await resolveLastActivityByViewer(octokit, {
+      const { lastActivityByViewer, viewerParticipated } = await resolveViewerActivity(octokit, {
         owner,
         repo,
         pullNumber: pull.number,
@@ -991,6 +1007,7 @@ async function syncRepository(
         body: pull.body,
         viewerLogin: params.viewerLogin,
         lastActivityByViewer,
+        viewerParticipated,
       });
 
       upsertedCount += 1;
