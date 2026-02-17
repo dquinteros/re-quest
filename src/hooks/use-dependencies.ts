@@ -3,14 +3,16 @@ import type { DependenciesResponse } from "@/types/pr";
 import { requestJson } from "@/lib/request";
 
 export interface DependencyFilters {
-  repo: string;
+  repo: string[];
+  author: string[];
   ciState: "" | "FAILURE" | "PENDING" | "SUCCESS" | "UNKNOWN";
   assigned: "all" | "true" | "false";
   sort: "urgency" | "updated_desc" | "updated_asc" | "repo";
 }
 
 export const DEFAULT_DEPENDENCY_FILTERS: DependencyFilters = {
-  repo: "",
+  repo: [],
+  author: [],
   ciState: "",
   assigned: "all",
   sort: "repo",
@@ -19,7 +21,8 @@ export const DEFAULT_DEPENDENCY_FILTERS: DependencyFilters = {
 function buildQuery(filters: DependencyFilters): string {
   const params = new URLSearchParams();
 
-  if (filters.repo.trim()) params.set("repo", filters.repo.trim());
+  if (filters.repo.length > 0) params.set("repo", filters.repo.join(","));
+  if (filters.author.length > 0) params.set("author", filters.author.join(","));
   if (filters.ciState) params.set("ciState", filters.ciState);
   if (filters.assigned !== "all") params.set("assigned", filters.assigned);
   params.set("sort", filters.sort);

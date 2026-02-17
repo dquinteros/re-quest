@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, type FormEvent } from "react";
+import { useState, useCallback, useMemo, type FormEvent } from "react";
 import {
   Bot,
   ChevronDown,
@@ -15,11 +15,29 @@ import {
   Package,
   Filter,
   X,
+  Terminal,
+  RotateCw,
+  AlertTriangle,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
 import { AppNav } from "@/components/app-nav";
 import { useTheme } from "@/hooks/use-theme";
 import {
@@ -29,7 +47,96 @@ import {
 } from "@/hooks/use-dependencies";
 import { requestJson } from "@/lib/request";
 import { cn } from "@/lib/utils";
+import { MultiSelectFilter } from "@/components/multi-select-filter";
 import type { PullRequestListItem, DependencyGroup } from "@/types/pr";
+
+/* ------------------------------------------------------------------ */
+/*  Dependabot command definitions                                     */
+/* ------------------------------------------------------------------ */
+
+interface DependabotCommand {
+  label: string;
+  command: string;
+  description: string;
+  destructive?: boolean;
+}
+
+interface DependabotCommandGroup {
+  label: string;
+  commands: DependabotCommand[];
+}
+
+const DEPENDABOT_COMMAND_GROUPS: DependabotCommandGroup[] = [
+  {
+    label: "Quick Actions",
+    commands: [
+      {
+        label: "Rebase",
+        command: "@dependabot rebase",
+        description: "Rebase this PR onto the base branch",
+      },
+      {
+        label: "Recreate",
+        command: "@dependabot recreate",
+        description: "Recreate this PR, overwriting any edits",
+        destructive: true,
+      },
+    ],
+  },
+  {
+    label: "Ignore (closes PR)",
+    commands: [
+      {
+        label: "Ignore this dependency",
+        command: "@dependabot ignore this dependency",
+        description: "Stop all updates for this dependency",
+        destructive: true,
+      },
+      {
+        label: "Ignore major version",
+        command: "@dependabot ignore this major version",
+        description: "Stop major version updates for this dependency",
+        destructive: true,
+      },
+      {
+        label: "Ignore minor version",
+        command: "@dependabot ignore this minor version",
+        description: "Stop minor version updates for this dependency",
+        destructive: true,
+      },
+      {
+        label: "Ignore patch version",
+        command: "@dependabot ignore this patch version",
+        description: "Stop patch version updates for this dependency",
+        destructive: true,
+      },
+    ],
+  },
+  {
+    label: "Info",
+    commands: [
+      {
+        label: "Show ignore conditions",
+        command: "@dependabot show ignore conditions",
+        description: "List current ignore rules for this dependency",
+      },
+    ],
+  },
+];
+
+const BATCH_COMMANDS: DependabotCommand[] = [
+  {
+    label: "Rebase all",
+    command: "@dependabot rebase",
+    description: "Rebase all selected PRs",
+  },
+  {
+    label: "Recreate all",
+    command: "@dependabot recreate",
+    description: "Recreate all selected PRs (overwrites edits)",
+    destructive: true,
+  },
+];
 
 function ciIcon(ciState: string) {
   switch (ciState) {
@@ -44,18 +151,206 @@ function ciIcon(ciState: string) {
   }
 }
 
+/* ------------------------------------------------------------------ */
+/*  Confirmation dialog for destructive commands                       */
+/* ------------------------------------------------------------------ */
+
+function ConfirmCommandDialog({
+  open,
+  command,
+  prLabel,
+  onConfirm,
+  onCancel,
+  sending,
+}: {
+  open: boolean;
+  command: DependabotCommand | null;
+  prLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  sending: boolean;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onCancel()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-destructive" />
+            Confirm command
+          </DialogTitle>
+          <DialogDescription>
+            This will post{" "}
+            <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">
+              {command?.command}
+            </code>{" "}
+            on <span className="font-medium text-foreground">{prLabel}</span>.
+            {command?.command.includes("ignore") &&
+              " This closes the PR and prevents future updates."}
+            {command?.command === "@dependabot recreate" &&
+              " This overwrites any manual edits on the PR."}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="gap-2 sm:gap-0">
+          <DialogClose asChild>
+            <Button variant="outline" size="sm" disabled={sending}>
+              Cancel
+            </Button>
+          </DialogClose>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={onConfirm}
+            disabled={sending}
+          >
+            {sending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+            ) : null}
+            Send command
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Dependabot command popover menu                                    */
+/* ------------------------------------------------------------------ */
+
+function DependabotCommandMenu({
+  prId,
+  prTitle,
+  prNumber,
+  onSendCommand,
+  sending,
+}: {
+  prId: string;
+  prTitle: string;
+  prNumber: number;
+  onSendCommand: (prId: string, command: string) => Promise<void>;
+  sending: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [confirmCmd, setConfirmCmd] = useState<DependabotCommand | null>(null);
+  const [localSending, setLocalSending] = useState(false);
+
+  const isBusy = sending || localSending;
+
+  const handleClick = (cmd: DependabotCommand) => {
+    if (cmd.destructive) {
+      setOpen(false);
+      setConfirmCmd(cmd);
+    } else {
+      setOpen(false);
+      void fireCommand(cmd.command);
+    }
+  };
+
+  const fireCommand = async (command: string) => {
+    setLocalSending(true);
+    try {
+      await onSendCommand(prId, command);
+    } finally {
+      setLocalSending(false);
+      setConfirmCmd(null);
+    }
+  };
+
+  return (
+    <>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 text-xs gap-1 text-muted-foreground hover:text-foreground"
+            disabled={isBusy}
+          >
+            {isBusy ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Terminal className="h-3 w-3" />
+            )}
+            Commands
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="end"
+          className="w-64 p-0"
+        >
+          <div className="px-3 py-2 border-b border-border">
+            <p className="text-xs font-medium text-muted-foreground">
+              Dependabot commands
+            </p>
+          </div>
+          <div className="py-1">
+            {DEPENDABOT_COMMAND_GROUPS.map((group) => (
+              <div key={group.label}>
+                <p className="px-3 pt-2 pb-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  {group.label}
+                </p>
+                {group.commands.map((cmd) => (
+                  <button
+                    key={cmd.command}
+                    type="button"
+                    className={cn(
+                      "w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors flex items-start gap-2",
+                      cmd.destructive && "text-destructive hover:text-destructive",
+                    )}
+                    onClick={() => handleClick(cmd)}
+                    disabled={isBusy}
+                  >
+                    <span className="flex-1">
+                      <span className="font-medium block">{cmd.label}</span>
+                      <span className="text-[10px] text-muted-foreground block mt-0.5">
+                        {cmd.description}
+                      </span>
+                    </span>
+                    {cmd.destructive && (
+                      <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      <ConfirmCommandDialog
+        open={confirmCmd !== null}
+        command={confirmCmd}
+        prLabel={`#${prNumber} ${prTitle}`}
+        onConfirm={() => {
+          if (confirmCmd) void fireCommand(confirmCmd.command);
+        }}
+        onCancel={() => setConfirmCmd(null)}
+        sending={localSending}
+      />
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  PR row                                                             */
+/* ------------------------------------------------------------------ */
+
 function DependencyPrRow({
   item,
   isSelected,
   onToggle,
   onAssign,
+  onSendCommand,
   assigning,
+  sendingCommand,
 }: {
   item: PullRequestListItem;
   isSelected: boolean;
   onToggle: () => void;
   onAssign: (id: string, login: string) => void;
+  onSendCommand: (prId: string, command: string) => Promise<void>;
   assigning: boolean;
+  sendingCommand: boolean;
 }) {
   const [showAssign, setShowAssign] = useState(false);
   const [assignLogin, setAssignLogin] = useState("");
@@ -165,15 +460,24 @@ function DependencyPrRow({
             </Button>
           </form>
         ) : (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 text-xs gap-1 text-muted-foreground hover:text-foreground"
-            onClick={() => setShowAssign(true)}
-          >
-            <UserPlus className="h-3 w-3" />
-            Assign
-          </Button>
+          <>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 text-xs gap-1 text-muted-foreground hover:text-foreground"
+              onClick={() => setShowAssign(true)}
+            >
+              <UserPlus className="h-3 w-3" />
+              Assign
+            </Button>
+            <DependabotCommandMenu
+              prId={item.id}
+              prTitle={item.title}
+              prNumber={item.number}
+              onSendCommand={onSendCommand}
+              sending={sendingCommand}
+            />
+          </>
         )}
       </div>
     </div>
@@ -186,14 +490,18 @@ function RepositoryGroup({
   onToggleItem,
   onToggleGroup,
   onAssign,
+  onSendCommand,
   assigning,
+  sendingCommand,
 }: {
   group: DependencyGroup;
   selectedIds: Set<string>;
   onToggleItem: (id: string) => void;
   onToggleGroup: (repository: string) => void;
   onAssign: (id: string, login: string) => void;
+  onSendCommand: (prId: string, command: string) => Promise<void>;
   assigning: boolean;
+  sendingCommand: boolean;
 }) {
   const [expanded, setExpanded] = useState(true);
   const groupIds = group.items.map((item) => item.id);
@@ -269,7 +577,9 @@ function RepositoryGroup({
               isSelected={selectedIds.has(item.id)}
               onToggle={() => onToggleItem(item.id)}
               onAssign={onAssign}
+              onSendCommand={onSendCommand}
               assigning={assigning}
+              sendingCommand={sendingCommand}
             />
           ))}
         </div>
@@ -283,6 +593,8 @@ function DependencyFilterBar({
   onSetFilter,
   onReset,
   activeCount,
+  repoOptions,
+  authorOptions,
 }: {
   filters: DependencyFilters;
   onSetFilter: <K extends keyof DependencyFilters>(
@@ -291,6 +603,8 @@ function DependencyFilterBar({
   ) => void;
   onReset: () => void;
   activeCount: number;
+  repoOptions: string[];
+  authorOptions: string[];
 }) {
   return (
     <div className="flex items-center gap-2 flex-wrap">
@@ -298,6 +612,22 @@ function DependencyFilterBar({
         <Filter className="h-3.5 w-3.5" />
         <span>Filters</span>
       </div>
+
+      <MultiSelectFilter
+        label="Repo"
+        options={repoOptions}
+        selected={filters.repo}
+        onSelectionChange={(v) => onSetFilter("repo", v)}
+        placeholder="Search repos..."
+      />
+
+      <MultiSelectFilter
+        label="Author"
+        options={authorOptions}
+        selected={filters.author}
+        onSelectionChange={(v) => onSetFilter("author", v)}
+        placeholder="Search authors..."
+      />
 
       <select
         value={filters.ciState}
@@ -343,13 +673,6 @@ function DependencyFilterBar({
         <option value="updated_asc">Oldest first</option>
       </select>
 
-      <Input
-        placeholder="Filter by repo..."
-        value={filters.repo}
-        onChange={(e) => onSetFilter("repo", e.target.value)}
-        className="h-7 w-44 text-xs"
-      />
-
       {activeCount > 0 && (
         <Button
           variant="ghost"
@@ -368,15 +691,23 @@ function DependencyFilterBar({
 function BatchActionBar({
   count,
   onAssign,
+  onBatchCommand,
   onClear,
   assigning,
+  sendingCommand,
 }: {
   count: number;
   onAssign: (login: string) => void;
+  onBatchCommand: (command: string) => Promise<void>;
   onClear: () => void;
   assigning: boolean;
+  sendingCommand: boolean;
 }) {
   const [batchLogin, setBatchLogin] = useState("");
+  const [confirmCmd, setConfirmCmd] = useState<DependabotCommand | null>(null);
+  const [localSending, setLocalSending] = useState(false);
+
+  const isBusy = assigning || sendingCommand || localSending;
 
   const handleBatchAssign = (e: FormEvent) => {
     e.preventDefault();
@@ -385,48 +716,104 @@ function BatchActionBar({
     setBatchLogin("");
   };
 
+  const handleBatchCmd = (cmd: DependabotCommand) => {
+    if (cmd.destructive) {
+      setConfirmCmd(cmd);
+    } else {
+      void fireBatchCommand(cmd.command);
+    }
+  };
+
+  const fireBatchCommand = async (command: string) => {
+    setLocalSending(true);
+    try {
+      await onBatchCommand(command);
+    } finally {
+      setLocalSending(false);
+      setConfirmCmd(null);
+    }
+  };
+
   if (count === 0) return null;
 
   return (
-    <div className="sticky bottom-0 z-10 flex items-center gap-3 px-4 py-3 bg-primary/10 border border-primary/20 backdrop-blur-sm rounded-lg">
-      <span className="text-sm font-medium">
-        {count} {count === 1 ? "PR" : "PRs"} selected
-      </span>
+    <>
+      <div className="sticky bottom-0 z-10 flex items-center gap-3 px-4 py-3 bg-primary/10 border border-primary/20 backdrop-blur-sm rounded-lg flex-wrap">
+        <span className="text-sm font-medium">
+          {count} {count === 1 ? "PR" : "PRs"} selected
+        </span>
 
-      <form
-        onSubmit={handleBatchAssign}
-        className="flex items-center gap-2 ml-4"
-      >
-        <Input
-          value={batchLogin}
-          onChange={(e) => setBatchLogin(e.target.value)}
-          placeholder="GitHub login to assign..."
-          className="h-8 w-48 text-xs"
-        />
-        <Button
-          type="submit"
-          size="sm"
-          className="h-8 text-xs gap-1"
-          disabled={assigning || !batchLogin.trim()}
+        <form
+          onSubmit={handleBatchAssign}
+          className="flex items-center gap-2 ml-4"
         >
-          {assigning ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
-          ) : (
-            <UserPlus className="h-3 w-3" />
-          )}
-          Assign all
-        </Button>
-      </form>
+          <Input
+            value={batchLogin}
+            onChange={(e) => setBatchLogin(e.target.value)}
+            placeholder="GitHub login to assign..."
+            className="h-8 w-48 text-xs"
+          />
+          <Button
+            type="submit"
+            size="sm"
+            className="h-8 text-xs gap-1"
+            disabled={isBusy || !batchLogin.trim()}
+          >
+            {assigning ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <UserPlus className="h-3 w-3" />
+            )}
+            Assign all
+          </Button>
+        </form>
 
-      <Button
-        variant="ghost"
-        size="sm"
-        className="h-8 text-xs ml-auto"
-        onClick={onClear}
-      >
-        Clear selection
-      </Button>
-    </div>
+        <div className="flex items-center gap-1.5 border-l border-primary/20 pl-3 ml-1">
+          {BATCH_COMMANDS.map((cmd) => (
+            <Button
+              key={cmd.command}
+              variant={cmd.destructive ? "outline" : "secondary"}
+              size="sm"
+              className={cn(
+                "h-8 text-xs gap-1",
+                cmd.destructive && "border-destructive/40 text-destructive hover:bg-destructive/10",
+              )}
+              disabled={isBusy}
+              onClick={() => handleBatchCmd(cmd)}
+            >
+              {localSending && confirmCmd?.command === cmd.command ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : cmd.command.includes("rebase") ? (
+                <RotateCw className="h-3 w-3" />
+              ) : (
+                <RefreshCw className="h-3 w-3" />
+              )}
+              {cmd.label}
+            </Button>
+          ))}
+        </div>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 text-xs ml-auto"
+          onClick={onClear}
+        >
+          Clear selection
+        </Button>
+      </div>
+
+      <ConfirmCommandDialog
+        open={confirmCmd !== null}
+        command={confirmCmd}
+        prLabel={`${count} selected ${count === 1 ? "PR" : "PRs"}`}
+        onConfirm={() => {
+          if (confirmCmd) void fireBatchCommand(confirmCmd.command);
+        }}
+        onCancel={() => setConfirmCmd(null)}
+        sending={localSending}
+      />
+    </>
   );
 }
 
@@ -438,6 +825,7 @@ export function DependenciesPage({ viewerLabel }: DependenciesPageProps) {
   const { theme, toggleTheme } = useTheme();
   const [signingOut, setSigningOut] = useState(false);
   const [assigning, setAssigning] = useState(false);
+  const [sendingCommand, setSendingCommand] = useState(false);
   const {
     data,
     loading,
@@ -457,8 +845,25 @@ export function DependenciesPage({ viewerLabel }: DependenciesPageProps) {
     await signOut({ callbackUrl: "/" });
   }, []);
 
+  const repoOptions = useMemo(() => {
+    if (!data) return [];
+    return Array.from(new Set(data.groups.map((g) => g.repository))).sort();
+  }, [data]);
+
+  const authorOptions = useMemo(() => {
+    if (!data) return [];
+    const authors = new Set<string>();
+    for (const group of data.groups) {
+      for (const item of group.items) {
+        authors.add(item.authorLogin);
+      }
+    }
+    return Array.from(authors).sort();
+  }, [data]);
+
   const activeFilterCount = [
-    filters.repo !== DEFAULT_DEPENDENCY_FILTERS.repo,
+    filters.repo.length > 0,
+    filters.author.length > 0,
     filters.ciState !== DEFAULT_DEPENDENCY_FILTERS.ciState,
     filters.assigned !== DEFAULT_DEPENDENCY_FILTERS.assigned,
     filters.sort !== DEFAULT_DEPENDENCY_FILTERS.sort,
@@ -507,6 +912,67 @@ export function DependenciesPage({ viewerLabel }: DependenciesPageProps) {
         refresh();
       } finally {
         setAssigning(false);
+      }
+    },
+    [selectedIds, clearSelection, refresh],
+  );
+
+  const sendDependabotCommand = useCallback(
+    async (prId: string, command: string) => {
+      setSendingCommand(true);
+      try {
+        await requestJson(
+          `/api/prs/${encodeURIComponent(prId)}/comments`,
+          {
+            method: "POST",
+            body: JSON.stringify({ body: command }),
+          },
+        );
+        toast.success(`Sent: ${command}`);
+        refresh();
+      } catch (err) {
+        toast.error(
+          `Failed to send command: ${err instanceof Error ? err.message : "Unknown error"}`,
+        );
+      } finally {
+        setSendingCommand(false);
+      }
+    },
+    [refresh],
+  );
+
+  const batchSendCommand = useCallback(
+    async (command: string) => {
+      setSendingCommand(true);
+      try {
+        const ids = Array.from(selectedIds);
+        const results = await Promise.allSettled(
+          ids.map((id) =>
+            requestJson(
+              `/api/prs/${encodeURIComponent(id)}/comments`,
+              {
+                method: "POST",
+                body: JSON.stringify({ body: command }),
+              },
+            ),
+          ),
+        );
+        const succeeded = results.filter((r) => r.status === "fulfilled").length;
+        const failed = results.filter((r) => r.status === "rejected").length;
+        if (failed === 0) {
+          toast.success(`Sent "${command}" to ${succeeded} ${succeeded === 1 ? "PR" : "PRs"}`);
+        } else {
+          toast.warning(
+            `Sent to ${succeeded} ${succeeded === 1 ? "PR" : "PRs"}, failed for ${failed}`,
+          );
+        }
+        clearSelection();
+        refresh();
+      } catch {
+        toast.error("Failed to send batch command");
+        refresh();
+      } finally {
+        setSendingCommand(false);
       }
     },
     [selectedIds, clearSelection, refresh],
@@ -564,6 +1030,8 @@ export function DependenciesPage({ viewerLabel }: DependenciesPageProps) {
             onSetFilter={setFilter}
             onReset={resetFilters}
             activeCount={activeFilterCount}
+            repoOptions={repoOptions}
+            authorOptions={authorOptions}
           />
 
           {error && (
@@ -602,7 +1070,9 @@ export function DependenciesPage({ viewerLabel }: DependenciesPageProps) {
                   onToggleItem={toggleSelected}
                   onToggleGroup={toggleGroup}
                   onAssign={assignPr}
+                  onSendCommand={sendDependabotCommand}
                   assigning={assigning}
+                  sendingCommand={sendingCommand}
                 />
               ))}
             </div>
@@ -612,8 +1082,10 @@ export function DependenciesPage({ viewerLabel }: DependenciesPageProps) {
             <BatchActionBar
               count={selectedIds.size}
               onAssign={batchAssign}
+              onBatchCommand={batchSendCommand}
               onClear={clearSelection}
               assigning={assigning}
+              sendingCommand={sendingCommand}
             />
           )}
         </div>

@@ -13,6 +13,8 @@ interface InboxPanelProps {
   selectedId: string | null;
   filters: Filters;
   activePreset: InboxPresetKey | null;
+  repoOptions: string[];
+  authorOptions: string[];
   onSelectPullRequest: (id: string) => void;
   onPatchFilters: (patch: Partial<Filters>) => void;
   onClearFilters: () => void;
@@ -25,6 +27,8 @@ export function InboxPanel({
   selectedId,
   filters,
   activePreset,
+  repoOptions,
+  authorOptions,
   onSelectPullRequest,
   onPatchFilters,
   onClearFilters,
@@ -94,7 +98,7 @@ export function InboxPanel({
         </div>
 
         <InboxPresets activePreset={activePreset} onApplyPreset={onApplyPreset} />
-        <InboxFilters filters={filters} onPatchFilters={onPatchFilters} onClearFilters={onClearFilters} />
+        <InboxFilters filters={filters} repoOptions={repoOptions} authorOptions={authorOptions} onPatchFilters={onPatchFilters} onClearFilters={onClearFilters} />
       </div>
 
       {/* List */}

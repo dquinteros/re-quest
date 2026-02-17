@@ -3,23 +3,13 @@ import type { Filters } from "@/components/triage/contracts";
 import type { InboxResponse } from "@/types/pr";
 import { requestJson } from "@/lib/request";
 
-function csvToList(value: string): string[] {
-  return value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
 function getInboxQuery(filters: Filters): string {
   const params = new URLSearchParams();
 
   if (filters.q.trim()) params.set("q", filters.q.trim());
 
-  const repos = csvToList(filters.repo);
-  if (repos.length) params.set("repo", repos.join(","));
-
-  const authors = csvToList(filters.author);
-  if (authors.length) params.set("author", authors.join(","));
+  if (filters.repo.length) params.set("repo", filters.repo.join(","));
+  if (filters.author.length) params.set("author", filters.author.join(","));
 
   if (filters.reviewState) params.set("reviewState", filters.reviewState);
   if (filters.ciState) params.set("ciState", filters.ciState);

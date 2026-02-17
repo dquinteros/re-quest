@@ -13,6 +13,7 @@ function listParam(value: string | null): string[] {
 
 const schema = z.object({
   repo: z.array(z.string()).default([]),
+  author: z.array(z.string()).default([]),
   ciState: z
     .array(z.enum(["SUCCESS", "FAILURE", "PENDING", "UNKNOWN"]).catch("UNKNOWN"))
     .default([]),
@@ -23,6 +24,7 @@ const schema = z.object({
 function parseDependencyQuery(searchParams: URLSearchParams): ParsedDependencyQuery {
   return schema.parse({
     repo: listParam(searchParams.get("repo")),
+    author: listParam(searchParams.get("author")),
     ciState: listParam(searchParams.get("ciState")),
     assigned: searchParams.get("assigned") ?? "all",
     sort: searchParams.get("sort") ?? "repo",

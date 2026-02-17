@@ -24,8 +24,8 @@ const CI_STATE_FILTER_VALUES = ["", "FAILURE", "PENDING", "SUCCESS", "UNKNOWN"] 
 
 export interface UiPreferenceFilters {
   q: string;
-  repo: string;
-  author: string;
+  repo: string[];
+  author: string[];
   reviewState: (typeof REVIEW_STATE_FILTER_VALUES)[number];
   ciState: (typeof CI_STATE_FILTER_VALUES)[number];
   draft: (typeof DRAFT_FILTER_VALUES)[number];
@@ -46,8 +46,8 @@ export const UI_PREFERENCES_STORAGE_KEY = `re-quest.ui-preferences.v${UI_PREFERE
 
 export const DEFAULT_UI_FILTER_PREFERENCES: UiPreferenceFilters = {
   q: "",
-  repo: "",
-  author: "",
+  repo: [],
+  author: [],
   reviewState: "",
   ciState: "",
   draft: "all",
@@ -97,6 +97,16 @@ function resolveUpdater<T>(updater: PreferenceUpdater<T>, current: T): T {
 
 function toStringOrFallback(value: unknown, fallback: string): string {
   return typeof value === "string" ? value : fallback;
+}
+
+function toStringArrayOrFallback(value: unknown, fallback: string[]): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((v): v is string => typeof v === "string" && v.trim().length > 0);
+  }
+  if (typeof value === "string" && value.trim()) {
+    return value.split(",").map((s) => s.trim()).filter(Boolean);
+  }
+  return fallback;
 }
 
 function toEnumOrFallback<T extends readonly string[]>(
@@ -150,8 +160,8 @@ export function normalizeUiPreferenceFilters(value: unknown): UiPreferenceFilter
   const source = isRecord(value) ? value : {};
   return {
     q: toStringOrFallback(source.q, DEFAULT_UI_FILTER_PREFERENCES.q),
-    repo: toStringOrFallback(source.repo, DEFAULT_UI_FILTER_PREFERENCES.repo),
-    author: toStringOrFallback(source.author, DEFAULT_UI_FILTER_PREFERENCES.author),
+    repo: toStringArrayOrFallback(source.repo, DEFAULT_UI_FILTER_PREFERENCES.repo),
+    author: toStringArrayOrFallback(source.author, DEFAULT_UI_FILTER_PREFERENCES.author),
     reviewState: toEnumOrFallback(
       source.reviewState,
       REVIEW_STATE_FILTER_VALUES,

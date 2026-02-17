@@ -178,6 +178,16 @@ export function PrAttentionManager({
     return inbox.items.find((item) => item.id === selectedId) ?? null;
   }, [inbox, selectedId]);
 
+  const repoOptions = useMemo(() => {
+    if (!inbox) return [];
+    return Array.from(new Set(inbox.items.map((item) => item.repository))).sort();
+  }, [inbox]);
+
+  const authorOptions = useMemo(() => {
+    if (!inbox) return [];
+    return Array.from(new Set(inbox.items.map((item) => item.authorLogin))).sort();
+  }, [inbox]);
+
   const selectedUrl = detail?.url ?? selectedListItem?.url ?? null;
 
   async function handleManualRefresh() {
@@ -321,6 +331,8 @@ export function PrAttentionManager({
             selectedId={selectedId}
             filters={filters}
             activePreset={activePreset}
+            repoOptions={repoOptions}
+            authorOptions={authorOptions}
             onSelectPullRequest={setSelectedId}
             onPatchFilters={patchFilters}
             onClearFilters={clearFilters}

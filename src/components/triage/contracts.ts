@@ -6,8 +6,8 @@ export type MutateTarget = "labels" | "assignees" | "reviewers";
 
 export interface Filters {
   q: string;
-  repo: string;
-  author: string;
+  repo: string[];
+  author: string[];
   reviewState:
     | ""
     | "REVIEW_REQUESTED"
@@ -24,8 +24,8 @@ export interface Filters {
 
 export const DEFAULT_FILTERS: Filters = {
   q: "",
-  repo: "",
-  author: "",
+  repo: [],
+  author: [],
   reviewState: "",
   ciState: "",
   draft: "all",

@@ -270,6 +270,7 @@ export async function listInboxPullRequests(
 
 export interface ParsedDependencyQuery {
   repo: string[];
+  author: string[];
   ciState: Array<"SUCCESS" | "FAILURE" | "PENDING" | "UNKNOWN">;
   assigned: "true" | "false" | "all";
   sort: "urgency" | "updated_desc" | "updated_asc" | "repo";
@@ -281,7 +282,9 @@ export async function listDependencyPullRequests(
 ): Promise<DependenciesResponse> {
   const where: Prisma.PullRequestWhereInput = {
     ...ownershipFilter(scope),
-    authorLogin: { endsWith: "[bot]" },
+    authorLogin: query.author.length
+      ? { in: query.author }
+      : { endsWith: "[bot]" },
     state: "OPEN",
     ...(query.repo.length
       ? {

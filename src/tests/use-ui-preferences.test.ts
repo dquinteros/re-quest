@@ -26,7 +26,7 @@ describe("useUiPreferences", () => {
         filters: {
           ...current.filters,
           q: "urgent",
-          repo: "org/repo",
+          repo: ["org/repo"],
         },
         sort: "updated_desc",
         advancedPanels: {
@@ -51,7 +51,7 @@ describe("useUiPreferences", () => {
     const restoredRender = renderHook(() => useUiPreferences(storageKey));
 
     expect(restoredRender.result.current.preferences.filters.q).toBe("urgent");
-    expect(restoredRender.result.current.preferences.filters.repo).toBe("org/repo");
+    expect(restoredRender.result.current.preferences.filters.repo).toEqual(["org/repo"]);
     expect(restoredRender.result.current.preferences.sort).toBe("updated_desc");
     expect(restoredRender.result.current.preferences.advancedPanels.labels).toBe(true);
     expect(restoredRender.result.current.preferences.lastSelectedPrId).toBe("pr-42");

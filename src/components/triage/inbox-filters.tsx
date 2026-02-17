@@ -5,6 +5,7 @@ import { ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { MultiSelectFilter } from "@/components/multi-select-filter";
 import {
   CI_STATE_OPTIONS,
   DEFAULT_FILTERS,
@@ -19,8 +20,8 @@ import { useState } from "react";
 function getActiveFilterCount(filters: Filters): number {
   let count = 0;
   if (filters.q.trim()) count++;
-  if (filters.repo.trim()) count++;
-  if (filters.author.trim()) count++;
+  if (filters.repo.length > 0) count++;
+  if (filters.author.length > 0) count++;
   if (filters.reviewState) count++;
   if (filters.ciState) count++;
   if (filters.draft !== "all") count++;
@@ -30,11 +31,13 @@ function getActiveFilterCount(filters: Filters): number {
 
 interface InboxFiltersProps {
   filters: Filters;
+  repoOptions: string[];
+  authorOptions: string[];
   onPatchFilters: (patch: Partial<Filters>) => void;
   onClearFilters: () => void;
 }
 
-export function InboxFilters({ filters, onPatchFilters, onClearFilters }: InboxFiltersProps) {
+export function InboxFilters({ filters, repoOptions, authorOptions, onPatchFilters, onClearFilters }: InboxFiltersProps) {
   const [open, setOpen] = useState(false);
   const activeCount = useMemo(() => getActiveFilterCount(filters), [filters]);
 
@@ -70,19 +73,19 @@ export function InboxFilters({ filters, onPatchFilters, onClearFilters }: InboxF
       {open && (
         <div className="mt-2 space-y-2 animate-in fade-in-0 slide-in-from-top-1 duration-150">
           <div className="grid grid-cols-2 gap-2">
-            <Input
-              id={TRIAGE_CONTROL_IDS.filterRepo}
-              placeholder="owner/repo"
-              value={filters.repo}
-              onChange={(e) => onPatchFilters({ repo: e.target.value })}
-              className="h-7 text-[11px]"
+            <MultiSelectFilter
+              label="Repo"
+              options={repoOptions}
+              selected={filters.repo}
+              onSelectionChange={(v) => onPatchFilters({ repo: v })}
+              placeholder="Search repos..."
             />
-            <Input
-              id={TRIAGE_CONTROL_IDS.filterAuthor}
-              placeholder="author"
-              value={filters.author}
-              onChange={(e) => onPatchFilters({ author: e.target.value })}
-              className="h-7 text-[11px]"
+            <MultiSelectFilter
+              label="Author"
+              options={authorOptions}
+              selected={filters.author}
+              onSelectionChange={(v) => onPatchFilters({ author: v })}
+              placeholder="Search authors..."
             />
           </div>
           <div className="grid grid-cols-2 gap-2">
