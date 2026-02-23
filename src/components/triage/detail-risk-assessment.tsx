@@ -117,12 +117,13 @@ export function DetailRiskAssessment({ pullRequestId, initialAssessment }: Detai
 
   return (
     <div className="rounded-md border border-border bg-muted/20">
-      <button
-        type="button"
-        className="flex items-center justify-between w-full px-3 py-2 text-left"
-        onClick={() => setExpanded(!expanded)}
-      >
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between w-full px-3 py-2">
+        <button
+          type="button"
+          className="flex flex-1 items-center gap-2 text-left"
+          onClick={() => setExpanded(!expanded)}
+          aria-expanded={expanded}
+        >
           {expanded ? (
             <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
           ) : (
@@ -133,20 +134,17 @@ export function DetailRiskAssessment({ pullRequestId, initialAssessment }: Detai
           <Badge variant="outline" className={`text-[10px] ${badge.className}`}>
             {badge.label}
           </Badge>
-        </div>
+        </button>
         <Button
           variant="ghost"
           size="sm"
           className="h-6 w-6 p-0"
-          onClick={(e) => {
-            e.stopPropagation();
-            void generateAssessment();
-          }}
+          onClick={() => void generateAssessment()}
           title="Regenerate assessment"
         >
           <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />
         </Button>
-      </button>
+      </div>
 
       {expanded && (
         <div className="px-3 pb-3 space-y-2">

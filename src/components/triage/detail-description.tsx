@@ -15,25 +15,137 @@ interface DetailDescriptionProps {
   detail: PullRequestDetail;
 }
 
-const markdownComponents: Components = {
-  // Open links in new tab
-  a: ({ children, href, ...props }) => (
-    <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
-      {children}
-    </a>
-  ),
-  // Checkbox inputs (GFM task lists)
-  input: ({ type, checked, ...props }) => {
-    if (type === "checkbox") {
-      return (
-        <input type="checkbox" checked={checked} disabled readOnly {...props} />
-      );
+const ABSOLUTE_URL_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
+const SCHEMELESS_GITHUB_HOSTS = [
+  "github.com/",
+  "www.github.com/",
+  "raw.githubusercontent.com/",
+  "user-images.githubusercontent.com/",
+  "private-user-images.githubusercontent.com/",
+];
+
+function isSchemeLessGithubUrl(url: string): boolean {
+  const lower = url.toLowerCase();
+  return SCHEMELESS_GITHUB_HOSTS.some((prefix) => lower.startsWith(prefix));
+}
+
+const GITHUB_ATTACHMENT_HOSTS = new Set([
+  "user-images.githubusercontent.com",
+  "private-user-images.githubusercontent.com",
+  "objects.githubusercontent.com",
+  "media.githubusercontent.com",
+]);
+
+function isGithubAttachmentUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    if (host === "github.com" || host === "www.github.com") {
+      return parsed.pathname.startsWith("/user-attachments/assets/");
     }
-    return <input type={type} {...props} />;
-  },
-};
+
+    return GITHUB_ATTACHMENT_HOSTS.has(host);
+  } catch {
+    return false;
+  }
+}
+
+function toAssetProxyUrl(url: string): string {
+  return `/api/github/asset?url=${encodeURIComponent(url)}`;
+}
+
+function normalizeRepoRelativePath(path: string): string {
+  let normalized = path.trim();
+  if (normalized.startsWith("/")) {
+    normalized = normalized.slice(1);
+  }
+  while (normalized.startsWith("./")) {
+    normalized = normalized.slice(2);
+  }
+  while (normalized.startsWith("../")) {
+    normalized = normalized.slice(3);
+  }
+  return normalized;
+}
+
+function resolveMarkdownUrl(
+  rawUrl: string,
+  detail: PullRequestDetail,
+  options?: { rawFile?: boolean; proxyImage?: boolean },
+): string {
+  let normalized = rawUrl.trim();
+  if (!normalized || normalized.startsWith("#")) {
+    return normalized;
+  }
+
+  if (normalized.startsWith("//")) {
+    normalized = `https:${normalized}`;
+  }
+  if (isSchemeLessGithubUrl(normalized)) {
+    normalized = `https://${normalized}`;
+  }
+
+  if (options?.proxyImage && isGithubAttachmentUrl(normalized)) {
+    return toAssetProxyUrl(normalized);
+  }
+
+  if (ABSOLUTE_URL_SCHEME.test(normalized)) {
+    return normalized;
+  }
+
+  const [pathWithQuery, hash = ""] = normalized.split("#", 2);
+  const [pathPart, query = ""] = pathWithQuery.split("?", 2);
+  const normalizedPath = normalizeRepoRelativePath(pathPart);
+  if (!normalizedPath) {
+    return normalized;
+  }
+
+  const ref = detail.headRef?.trim() || detail.baseRef?.trim() || "HEAD";
+  const url = new URL(`https://github.com/${detail.repository}/blob/${ref}/${normalizedPath}`);
+  if (query) {
+    const searchParams = new URLSearchParams(query);
+    for (const [key, value] of searchParams.entries()) {
+      url.searchParams.append(key, value);
+    }
+  }
+  if (options?.rawFile) {
+    url.searchParams.set("raw", "1");
+  }
+  if (hash) {
+    url.hash = hash;
+  }
+  return url.toString();
+}
+
+function getMarkdownComponents(detail: PullRequestDetail): Components {
+  return {
+    // Open links in new tab
+    a: ({ children, href, ...props }) => {
+      const resolvedHref =
+        typeof href === "string" ? resolveMarkdownUrl(href, detail) : href;
+      return (
+        <a href={resolvedHref} target="_blank" rel="noopener noreferrer" {...props}>
+          {children}
+        </a>
+      );
+    },
+    // Checkbox inputs (GFM task lists)
+    input: ({ type, checked, ...props }) => {
+      if (type === "checkbox") {
+        return (
+          <input type="checkbox" checked={checked} disabled readOnly {...props} />
+        );
+      }
+      return <input type={type} {...props} />;
+    },
+  };
+}
 
 export function DetailDescription({ detail }: DetailDescriptionProps) {
+  const markdownComponents = getMarkdownComponents(detail);
+  const markdownUrlTransform = (url: string, key: string): string =>
+    resolveMarkdownUrl(url, detail, { rawFile: key === "src", proxyImage: key === "src" });
+
   return (
     <div className="space-y-4">
       {/* Labels, assignees, reviewers */}
@@ -124,6 +236,7 @@ export function DetailDescription({ detail }: DetailDescriptionProps) {
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             rehypePlugins={[rehypeRaw]}
+            urlTransform={markdownUrlTransform}
             components={markdownComponents}
           >
             {detail.body}
