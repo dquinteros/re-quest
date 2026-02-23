@@ -13,7 +13,7 @@ import {
 } from "@/lib/pr-mutations";
 import { resolveRouteParams, type DynamicRouteContext } from "@/lib/route-params";
 import { prisma } from "@/lib/db";
-import { getUserSettings } from "@/lib/settings";
+import { getUserSettings } from "@/lib/settings.server";
 import type { AiSummary } from "@/types/pr";
 
 const OUTPUT_SCHEMA = JSON.stringify({

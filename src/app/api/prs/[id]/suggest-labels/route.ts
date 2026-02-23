@@ -13,7 +13,7 @@ import {
 } from "@/lib/pr-mutations";
 import { resolveRouteParams, type DynamicRouteContext } from "@/lib/route-params";
 import { prisma } from "@/lib/db";
-import { getUserSettings } from "@/lib/settings";
+import { getUserSettings } from "@/lib/settings.server";
 import type { LabelSuggestion } from "@/types/pr";
 
 interface SuggestLabelsResult {

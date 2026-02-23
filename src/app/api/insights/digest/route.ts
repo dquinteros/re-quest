@@ -7,7 +7,7 @@ import {
   requireAuthenticatedSessionUser,
 } from "@/lib/pr-mutations";
 import { prisma } from "@/lib/db";
-import { getUserSettings } from "@/lib/settings";
+import { getUserSettings } from "@/lib/settings.server";
 
 interface DigestMetrics {
   totalOpenPrs: number;

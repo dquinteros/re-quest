@@ -3,11 +3,8 @@ import {
   AuthenticationError,
   requireAuthenticatedSessionUser,
 } from "@/lib/pr-mutations";
-import {
-  getUserSettings,
-  upsertUserSettings,
-  normalizeAppSettings,
-} from "@/lib/settings";
+import { normalizeAppSettings } from "@/lib/settings";
+import { getUserSettings, upsertUserSettings } from "@/lib/settings.server";
 
 export async function GET(request: Request) {
   let sessionUser;
